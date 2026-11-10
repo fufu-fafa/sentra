@@ -1,0 +1,13 @@
+{
+  "name": "sentra-relay",
+  "private": true,
+  "description": "SENTRA relay: child phone to SENTRA Care",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server.mjs",
+    "test": "node --disable-warning=ExperimentalWarning test.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "14.5.0"
+  }
+}

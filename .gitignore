@@ -1,0 +1,27 @@
+.gradle/
+build/
+.kotlin/
+local.properties
+.idea/
+*.iml
+.DS_Store
+captures/
+
+# Release signing
+keystore.properties
+*.jks
+*.keystore
+
+# Recordings pulled from the phone
+*.csv
+
+# Relay database on the Pi, and anything holding keys
+relay.db*
+*.db
+google-services.json
+firebase-service-account.json
+*-firebase-adminsdk-*.json
+node_modules/
+.env
+*.env
+.fake-child.json

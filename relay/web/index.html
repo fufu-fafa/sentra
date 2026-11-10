@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d1117">
+<title>SENTRA Care</title>
+<!-- SENTRA Care in a browser, served by the relay. Same API as the app's mode Orang tua: link with
+     an invite code, keep the live stream open, show the child on a map, ring on KELUAR_RUTE,
+     TERPUTUS and OFFLINE. A browser can't wake a locked phone, so the page has to stay open. -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="" defer></script>
+<style>
+  :root {
+    --bg: #0d1117; --card: #161b22; --text: #e6edf3; --muted: #8d96a0; --border: #30363d;
+    --accent: #4f8cff; --ok: #3fb950; --ok-bg: #12261e; --bad: #f85149; --bad-bg: #2d1416;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body { font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding: 0 16px 32px;
+         max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 28px; margin: 24px 0 2px; }
+  .sub { color: var(--muted); margin: 0 0 16px; font-size: 14px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 12px; }
+  .label { text-transform: uppercase; letter-spacing: .06em; font-size: 12px; color: var(--muted); margin: 0 0 6px; }
+  .row { display: flex; align-items: center; gap: 10px; }
+  .grow { flex: 1; min-width: 0; }
+  .muted { color: var(--muted); }
+  .small { font-size: 13px; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; word-break: break-all; }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; white-space: nowrap;
+          color: var(--muted); background: var(--border); }
+  .pill.ok { color: var(--ok); background: var(--ok-bg); }
+  .pill.bad { color: var(--bad); background: var(--bad-bg); }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
+  input { width: 100%; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border);
+          border-radius: 10px; padding: 12px; }
+  input:focus { outline: 2px solid var(--accent); border-color: transparent; }
+  #code { font-size: 24px; letter-spacing: .3em; text-align: center; font-family: ui-monospace, Menlo, monospace; }
+  button { font: inherit; font-weight: 600; border-radius: 10px; padding: 12px 16px; cursor: pointer; width: 100%;
+           border: 1px solid var(--border); background: transparent; color: var(--text); margin-top: 8px; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button:disabled { opacity: .45; cursor: default; }
+  button.inline { width: auto; padding: 6px 14px; margin-top: 6px; }
+  .msg { margin-top: 8px; font-size: 14px; }
+  .msg.bad { color: var(--bad); } .msg.ok { color: var(--ok); }
+  .wearer h2 { font-size: 22px; margin: 0; }
+  .map { height: 300px; border-radius: 10px; border: 1px solid var(--border); margin-top: 12px; background: var(--bg); z-index: 0; }
+  .nomap { display: flex; align-items: center; justify-content: center; text-align: center; padding: 16px; color: var(--muted); }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0; }
+  .stat { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; }
+  .stat b { display: block; font-size: 17px; }
+  .stat span { font-size: 12px; color: var(--muted); }
+  .battery { height: 6px; background: var(--border); border-radius: 3px; margin-top: 6px; overflow: hidden; }
+  .battery i { display: block; height: 100%; background: var(--ok); }
+  .ev { padding: 10px 0; border-top: 1px solid var(--border); }
+  .ev:first-of-type { border-top: 0; }
+  .tabs { display: flex; gap: 6px; margin: 4px 0 8px; }
+  .tabs button { width: auto; flex: 1; margin: 0; padding: 6px 0; font-size: 14px; }
+  .tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .pager { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .pager button { width: 44px; margin: 0; padding: 6px 0; }
+  .pager b { flex: 1; text-align: center; font-size: 15px; }
+  .day { font-size: 13px; font-weight: 600; color: var(--muted); margin: 14px 0 0; }
+  .ev .seen { color: var(--ok); font-size: 13px; }
+  .banner { background: var(--bad-bg); color: var(--bad); border-color: var(--bad); }
+  .banner button { border-color: var(--bad); color: var(--bad); }
+
+  /* Full-screen alarm, the browser stand-in for the app's AlarmActivity. */
+  #alarm { position: fixed; inset: 0; background: #b3121b; color: #fff; display: none; flex-direction: column;
+           justify-content: center; align-items: center; text-align: center; padding: 24px; z-index: 2000;
+           animation: flash 1s steps(2) infinite; }
+  #alarm.on { display: flex; }
+  #alarm h2 { font-size: 40px; margin: 0; }
+  #alarm p { font-size: 20px; margin: 8px 0; max-width: 520px; }
+  #alarm button { background: #fff; color: #b3121b; border: 0; font-size: 22px; padding: 18px; max-width: 420px; margin-top: 24px; }
+  #alarm .more { color: #ffd7d9; font-size: 15px; }
+  @keyframes flash { 50% { background: #7a0c12; } }
+  @media (prefers-reduced-motion: reduce) { #alarm { animation: none; } }
+</style>
+</head>
+<body>
+<h1>SENTRA Care</h1>
+<p class="sub" id="who"></p>
+
+<div id="sound" class="card banner" hidden>
+  <div>Ketuk sekali agar halaman ini bisa berbunyi saat ada alarm. Biarkan halaman tetap terbuka dan layar menyala.</div>
+  <button id="soundBtn">Nyalakan suara alarm</button>
+</div>
+
+<div id="status" class="card" hidden>
+  <div class="row">
+    <div class="grow"><p class="label">Relay</p><div class="mono" id="relay"></div></div>
+    <span class="pill" id="live">Mati</span>
+  </div>
+  <div class="msg bad" id="streamErr"></div>
+  <div class="muted small" id="caps"></div>
+</div>
+
+<div id="wearers"></div>
+
+<div id="link" class="card" hidden>
+  <p class="label">Hubungkan ke HP anak</p>
+  <div class="muted">Di HP anak: Setelan → Undang orang tua. Ketik kode 6 angka di sini.</div>
+  <form id="linkForm" autocomplete="off">
+    <label for="code">Kode undangan</label>
+    <input id="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="000000">
+    <label for="name">Nama Anda (tampil sebagai "Dilihat oleh …")</label>
+    <input id="name" maxlength="40">
+    <button class="primary" id="linkBtn" disabled>Hubungkan</button>
+    <button type="button" id="cancelLink" hidden>Batal</button>
+  </form>
+  <div class="msg" id="linkMsg"></div>
+</div>
+
+<button id="another" hidden>Hubungkan anak lain</button>
+<button id="signout" hidden>Keluar dari browser ini</button>
+
+<div id="alarm" role="alertdialog" aria-live="assertive">
+  <h2 id="alarmTitle">ALARM</h2>
+  <p id="alarmWho"></p>
+  <p id="alarmMsg"></p>
+  <p class="more" id="alarmMore"></p>
+  <p class="more" id="alarmMute" hidden>Suara mati: ketuk di luar tombol untuk menyalakannya.</p>
+  <button id="ackBtn">Sudah saya lihat</button>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const store = {
+  get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
+  set: (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} },
+};
+const LABELS = {
+  NAV_START: 'Mulai jalan', BELOK_KIRI: 'Belok kiri', BELOK_KANAN: 'Belok kanan', PUTAR_BALIK: 'Putar balik',
+  KELUAR_RUTE: 'Keluar rute', KEMBALI_RUTE: 'Kembali ke rute', ARRIVED: 'Sampai', NAV_STOP: 'Navigasi dihentikan',
+  TERPUTUS: 'Sleeve terputus', TERSAMBUNG: 'Sleeve tersambung', OFFLINE: 'HP anak offline', TEST: 'Tes alarm',
+};
+const NAV_STATES = { IDLE: 'Tidak jalan', NAVIGATING: 'Di rute', OFF_ROUTE: 'Keluar rute', ARRIVED: 'Sampai' };
+const ALARM_TITLES = { KELUAR_RUTE: 'KELUAR RUTE', TERPUTUS: 'SLEEVE TERPUTUS', OFFLINE: 'HP ANAK OFFLINE' };
+const ALARMS = new Set(Object.keys(ALARM_TITLES));
+const GOOD = new Set(['ARRIVED', 'TERSAMBUNG', 'KEMBALI_RUTE']);
+const RING_WINDOW_MS = 30 * 60_000; // ring for unacknowledged alarms this recent, e.g. after reopening the page
+const TRAIL_MS = 2 * 3600_000;      // how much of the child's track the map draws
+
+let token = store.get('care.token');
+let me = store.get('care.name') || '';
+let wearers = new Map();  // id -> child from /v1/dashboard, kept current by the stream
+let lastEventId = Number(store.get('care.lastEventId')) || null;
+let ringing = [];         // unacknowledged alarm events, oldest first
+let streamCtrl = null;
+
+// --- API ---------------------------------------------------------------------------------------
+
+async function api(method, path, body, auth = token) {
+  const r = await fetch(path, {
+    method,
+    headers: { 'Content-Type': 'application/json', ...(auth ? { Authorization: `Bearer ${auth}` } : {}) },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const json = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(json.error || `HTTP ${r.status}`), { status: r.status });
+  return json;
+}
+
+async function loadDashboard() {
+  const d = await api('GET', '/v1/dashboard?limit=1000'); // enough history to page back through weeks
+  const old = wearers;
+  wearers = new Map(d.wearers.map((w) => [w.id, { ...w, track: old.get(w.id)?.track || [] }]));
+  for (const w of d.wearers) for (const e of w.events) maybeRing({ ...e, wearerName: w.name });
+  render();
+  for (const w of wearers.values()) {
+    api('GET', `/v1/wearers/${w.id}/track?since=${Date.now() - TRAIL_MS}`)
+      .then((t) => { w.track = t.points; render(); }).catch(() => {});
+  }
+}
+
+// --- Live stream: fetch instead of EventSource, which can't send the bearer token -----------------
+
+function setLive(state, err = '') {
+  const el = $('live');
+  el.textContent = { live: 'Langsung', connecting: 'Menyambung…', off: 'Mati' }[state];
+  el.className = 'pill ' + ({ live: 'ok', off: 'bad' }[state] || '');
+  $('streamErr').textContent = err;
+}
+
+async function stream() {
+  streamCtrl?.abort();
+  const ctrl = streamCtrl = new AbortController();
+  while (!ctrl.signal.aborted) {
+    setLive('connecting');
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      if (lastEventId) headers['Last-Event-ID'] = String(lastEventId);
+      const r = await fetch('/v1/stream', { headers, signal: ctrl.signal, cache: 'no-store' });
+      if (r.status === 401) { signOut('Browser ini sudah diputus. Hubungkan lagi dengan kode baru.'); return; }
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      setLive('live');
+      await loadDashboard();
+      const reader = r.body.pipeThrough(new TextDecoderStream()).getReader();
+      let buf = '';
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += value.replace(/\r\n/g, '\n');
+        let i;
+        while ((i = buf.indexOf('\n\n')) >= 0) {
+          const block = buf.slice(0, i); buf = buf.slice(i + 2);
+          const type = /^event: ?(.*)$/m.exec(block)?.[1];
+          const data = /^data: ?(.*)$/m.exec(block)?.[1];
+          const id = /^id: ?(.*)$/m.exec(block)?.[1];
+          if (id) { lastEventId = Number(id); store.set('care.lastEventId', id); }
+          if (type && data) onMessage(type, JSON.parse(data));
+        }
+      }
+      throw new Error('sambungan tertutup');
+    } catch (err) {
+      if (ctrl.signal.aborted) return;
+      setLive('off', `Relay tidak terjangkau (${err.message}). Mencoba lagi…`);
+      await new Promise((ok) => setTimeout(ok, 5000));
+    }
+  }
+}
+
+function onMessage(type, d) {
+  const w = wearers.get(d.wearerId);
+  switch (type) {
+    case 'event': {
+      if (!w) { loadDashboard().catch(() => {}); break; }
+      const i = w.events.findIndex((e) => e.id === d.id);
+      if (i >= 0) w.events[i] = { ...w.events[i], ...d }; else w.events.unshift(d);
+      w.events.sort((a, b) => b.occurredAt - a.occurredAt || b.id - a.id);
+      maybeRing({ ...d, wearerName: d.wearerName || w.name });
+      break;
+    }
+    case 'status': if (w) { w.status = d.status; w.navigating = d.navigating; w.lastHeartbeat = d.at; w.offline = false; } break;
+    case 'location':
+      if (w) {
+        const { wearerId, ...p } = d;
+        w.location = p; w.lastHeartbeat = Date.now(); w.offline = false;
+        w.track.push(p);
+        while (w.track.length && w.track[0].at < Date.now() - TRAIL_MS) w.track.shift();
+      }
+      break;
+    case 'online': if (w) w.offline = false; break;
+    case 'offline':
+      // Silence during a trip also arrives as an OFFLINE alarm event, which is what rings.
+      if (w) { w.offline = true; if (!d.navigating) notify(`HP ${w.name} offline`, 'Tidak ada kabar dari HP anak selama 15 menit.', 'offline-' + w.id); }
+      break;
+    case 'ack':
+      if (w) { const e = w.events.find((x) => x.id === d.eventId); if (e) Object.assign(e, { ackedBy: d.by, ackedAt: d.at }); }
+      ringing = ringing.filter((e) => e.id !== d.eventId);
+      updateAlarm();
+      break;
+    case 'unlinked': wearers.delete(d.wearerId); ringing = ringing.filter((e) => e.wearerId !== d.wearerId); updateAlarm(); break;
+  }
+  render();
+}
+
+// --- Alarm: full-screen, siren, vibration and a notification while the page is open --------------
+
+function maybeRing(e) {
+  if (e.ackedAt || Date.now() - e.occurredAt > RING_WINDOW_MS) return;
+  if (!ALARMS.has(e.type)) {
+    if ((e.type === 'ARRIVED' || e.type === 'NAV_START') && !e.replay) notify(`${LABELS[e.type]} — ${e.wearerName}`, e.message || '', 'event-' + e.id);
+    return;
+  }
+  const known = ringing.find((x) => x.id === e.id);
+  if (known) { if (e.escalated) Object.assign(known, e); return; }
+  ringing.push(e);
+  notify(`${LABELS[e.type]} — ${e.wearerName}`, e.message || 'Buka halaman dan tandai sudah dilihat.', 'event-' + e.id);
+  updateAlarm();
+}
+
+function updateAlarm() {
+  const e = ringing[0];
+  $('alarm').classList.toggle('on', !!e);
+  if (!e) { siren.stop(); document.title = 'SENTRA Care'; return; }
+  $('alarmTitle').textContent = ALARM_TITLES[e.type] || e.type;
+  $('alarmWho').textContent = `${e.wearerName} · ${time(e.occurredAt)}`;
+  $('alarmMsg').textContent = e.message || '';
+  $('alarmMore').textContent = [
+    e.escalated ? 'Belum ada yang melihat' : '',
+    e.batteryPct != null ? `baterai HP anak ${e.batteryPct}%` : '',
+    ringing.length > 1 ? `${ringing.length - 1} alarm lain menunggu` : '',
+  ].filter(Boolean).join(' · ');
+  $('alarmMute').hidden = siren.ready;
+  $('ackBtn').disabled = false;
+  $('ackBtn').textContent = 'Sudah saya lihat';
+  document.title = `⚠ ${LABELS[e.type]} — ${e.wearerName}`;
+  siren.start();
+}
+
+async function acknowledge(id, btn) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Mengirim…'; }
+  try {
+    await api('POST', `/v1/events/${id}/ack`);
+    ringing = ringing.filter((e) => e.id !== id);
+    for (const w of wearers.values()) {
+      const e = w.events.find((x) => x.id === id);
+      if (e && !e.ackedAt) Object.assign(e, { ackedBy: me || 'Anda', ackedAt: Date.now() });
+    }
+    updateAlarm();
+    render();
+  } catch (err) {
+    if (btn) { btn.disabled = false; btn.textContent = `Coba lagi (${err.message})`; }
+  }
+}
+
+const siren = {
+  ctx: null, timer: null,
+  unlock() {
+    this.ctx ??= new (window.AudioContext || window.webkitAudioContext)();
+    return this.ctx.resume();
+  },
+  get ready() { return this.ctx?.state === 'running'; },
+  start() {
+    if (this.timer) return;
+    const beep = () => {
+      if (navigator.vibrate) navigator.vibrate([600, 200, 600]);
+      if (!this.ready) return;
+      const t = this.ctx.currentTime, o = this.ctx.createOscillator(), g = this.ctx.createGain();
+      o.type = 'square';
+      o.frequency.setValueAtTime(880, t); o.frequency.setValueAtTime(660, t + 0.4);
+      g.gain.setValueAtTime(0.25, t); g.gain.setValueAtTime(0, t + 0.8);
+      o.connect(g).connect(this.ctx.destination);
+      o.start(t); o.stop(t + 0.8);
+    };
+    beep();
+    this.timer = setInterval(beep, 1400);
+  },
+  stop() { clearInterval(this.timer); this.timer = null; navigator.vibrate?.(0); },
+};
+
+function notify(title, body, tag) {
+  if (!('Notification' in window) || Notification.permission !== 'granted' || document.visibilityState === 'visible') return;
+  try { new Notification(title, { body, tag, requireInteraction: true }); } catch {}
+}
+
+let wakeLock = null;
+async function keepAwake() {
+  try { if ('wakeLock' in navigator && !wakeLock) wakeLock = await navigator.wakeLock.request('screen'); wakeLock?.addEventListener('release', () => (wakeLock = null)); } catch {}
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && token) keepAwake(); });
+
+async function enableSound() {
+  await siren.unlock().catch(() => {});
+  if ('Notification' in window && Notification.permission === 'default') await Notification.requestPermission().catch(() => {});
+  keepAwake();
+  render();
+  if (ringing.length) { siren.stop(); updateAlarm(); }
+}
+
+// --- Map (Leaflet + OpenStreetMap), one per child, kept across re-renders -------------------------
+
+const cards = new Map(); // wearerId -> { el, info, mapEl, map, marker, circle, trail, routeLine, followed }
+
+function cardFor(w) {
+  let c = cards.get(w.id);
+  if (c) return c;
+  const el = document.createElement('div');
+  el.className = 'card wearer';
+  el.innerHTML = '<div data-part="head"></div><div class="map" data-part="map"></div><div data-part="info"></div>';
+  c = { el, head: el.querySelector('[data-part=head]'), mapEl: el.querySelector('[data-part=map]'), info: el.querySelector('[data-part=info]') };
+  cards.set(w.id, c);
+  return c;
+}
+
+function drawMap(w, c) {
+  if (!window.L) { c.mapEl.classList.add('nomap'); c.mapEl.textContent = 'Peta belum termuat (perlu internet untuk OpenStreetMap).'; return; }
+  const loc = w.location;
+  if (!c.map) {
+    if (!loc && !(w.status?.route?.length)) { c.mapEl.classList.add('nomap'); c.mapEl.textContent = 'Belum ada lokasi dari HP anak.'; return; }
+    c.mapEl.classList.remove('nomap'); c.mapEl.textContent = '';
+    c.map = L.map(c.mapEl, { zoomControl: true, attributionControl: true });
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(c.map);
+    c.routeLine = L.polyline([], { color: '#4f8cff', weight: 5, opacity: 0.55, dashArray: '8 8' }).addTo(c.map);
+    c.routeDots = L.layerGroup().addTo(c.map);
+    c.trail = L.polyline([], { color: '#3fb950', weight: 4, opacity: 0.9 }).addTo(c.map);
+    c.circle = L.circle([0, 0], { radius: 1, color: '#4f8cff', weight: 1, fillOpacity: 0.12 });
+    c.marker = L.circleMarker([0, 0], { radius: 9, color: '#fff', weight: 3, fillColor: '#4f8cff', fillOpacity: 1 });
+    c.map.on('dragstart', () => { c.followed = false; });
+    c.followed = true;
+  }
+  // The recorded route the child is walking, sent with the status while a trip runs.
+  const route = (w.navigating && w.status?.route) || [];
+  const routeKey = JSON.stringify(route);
+  if (routeKey !== c.routeKey) {
+    c.routeKey = routeKey;
+    c.routeLine.setLatLngs(route);
+    c.routeDots.clearLayers();
+    route.forEach((p, i) => L.circleMarker(p, { radius: 5, color: '#4f8cff', fillColor: '#0d1117', fillOpacity: 1, weight: 2 })
+      .bindTooltip(i === 0 ? 'Mulai' : i === route.length - 1 ? 'Tujuan' : `Titik ${i + 1}`).addTo(c.routeDots));
+    if (route.length && !loc) c.map.fitBounds(c.routeLine.getBounds().pad(0.2));
+  }
+  c.trail.setLatLngs(w.track.map((p) => [p.lat, p.lon]));
+  if (loc) {
+    const at = [loc.lat, loc.lon];
+    c.marker.setLatLng(at).addTo(c.map);
+    c.marker.setStyle({ fillColor: w.offline ? '#8d96a0' : w.status?.navState === 'OFF_ROUTE' ? '#f85149' : '#4f8cff' });
+    if (loc.acc) c.circle.setLatLng(at).setRadius(loc.acc).addTo(c.map); else c.circle.remove();
+    if (c.followed) c.map.setView(at, c.map.getZoom() ?? 17, { animate: true });
+    if (c.map.getZoom() == null) c.map.setView(at, 17);
+  }
+}
+
+// --- Rendering ---------------------------------------------------------------------------------
+
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+function ago(t) {
+  const s = Math.round((Date.now() - t) / 1000);
+  if (s < 10) return 'baru saja';
+  if (s < 60) return `${s} dtk lalu`;
+  if (s < 3600) return `${Math.round(s / 60)} mnt lalu`;
+  if (s < 86400) return `${Math.round(s / 3600)} jam lalu`;
+  return `${Math.round(s / 86400)} hari lalu`;
+}
+const when = (t) => new Date(t).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+function renderWearer(w) {
+  const c = cardFor(w);
+  const s = w.status || {};
+  c.head.innerHTML = `<div class="row"><h2 class="grow">${esc(w.name)}</h2>
+    ${w.offline ? '<span class="pill bad">HP offline</span>' : w.lastHeartbeat ? '<span class="pill ok">Online</span>' : '<span class="pill">Belum ada kabar</span>'}</div>`;
+  drawMap(w, c);
+
+  const sleeve = s.sleeveConnected === true ? 'Tersambung' : s.sleeveConnected === false ? 'Terputus' : '—';
+  const nav = w.navigating || s.navState === 'ARRIVED' ? (NAV_STATES[s.navState] || '—') : 'Tidak jalan';
+  const battery = s.batteryPct;
+  const next = w.navigating && s.nextPoint
+    ? `Titik berikutnya ${s.nextPoint} dari ${s.totalPoints ?? '?'}${s.distanceM != null ? ` · ${Math.round(s.distanceM)} m lagi` : ''}` : '';
+  const v = viewOf(w.id);
+  const [from, to, title] = range(v);
+  const shown = w.events.filter((e) => e.occurredAt >= from && e.occurredAt < to);
+  let lastDay = '';
+  const events = shown.map((e) => {
+    const day = new Date(e.occurredAt).toDateString();
+    const heading = v.mode !== 'day' && day !== lastDay ? `<p class="day">${dayName(e.occurredAt)}</p>` : '';
+    lastDay = day;
+    const cls = ALARMS.has(e.type) ? 'bad' : GOOD.has(e.type) ? 'ok' : '';
+    const tail = e.ackedAt
+      ? `<div class="seen">Dilihat oleh ${esc(e.ackedBy)} ${ago(e.ackedAt)}</div>`
+      : ALARMS.has(e.type) ? `<button class="inline" data-ack="${e.id}">Sudah saya lihat</button>` : '';
+    return `${heading}<div class="ev"><div class="row"><span class="pill ${cls}">${esc(LABELS[e.type] || e.type)}</span>
+      <span class="muted small">${v.mode === 'day' ? time(e.occurredAt) : when(e.occurredAt)}</span></div>
+      ${e.message ? `<div>${esc(e.message)}</div>` : ''}${tail}</div>`;
+  }).join('');
+  const alarmCount = shown.filter((e) => ALARMS.has(e.type)).length;
+  c.info.innerHTML = `
+    <div class="stats">
+      <div class="stat"><span>Sleeve</span><b style="${s.sleeveConnected === false ? 'color:var(--bad)' : ''}">${sleeve}</b></div>
+      <div class="stat"><span>Perjalanan</span><b style="${s.navState === 'OFF_ROUTE' && w.navigating ? 'color:var(--bad)' : ''}">${esc(nav)}</b></div>
+      <div class="stat"><span>Baterai HP</span><b>${battery != null ? battery + '%' : '—'}</b>
+        ${battery != null ? `<div class="battery"><i style="width:${Math.max(0, Math.min(100, battery))}%;${battery <= 20 ? 'background:var(--bad)' : ''}"></i></div>` : ''}</div>
+    </div>
+    ${w.navigating && s.routeName ? `<div>Rute: <b>${esc(s.routeName)}</b></div>` : ''}
+    ${next ? `<div>${esc(next)}</div>` : ''}
+    ${s.simulated ? '<div class="muted small">Mode uji: sleeve atau GPS simulasi.</div>' : ''}
+    <div class="muted small">${w.lastHeartbeat ? `Kabar terakhir ${ago(w.lastHeartbeat)}` : 'Belum ada kabar'}${w.location ? ` · lokasi ${ago(w.location.at)}${w.location.acc ? `, ±${Math.round(w.location.acc)} m` : ''}` : ''}</div>
+    <p class="label" style="margin-top:14px">Riwayat</p>
+    <div class="tabs">${['day', 'week', 'all'].map((m) =>
+      `<button class="${v.mode === m ? 'on' : ''}" data-view="${w.id}:${m}">${{ day: 'Hari', week: 'Minggu', all: 'Semua' }[m]}</button>`).join('')}</div>
+    ${v.mode !== 'all' ? `<div class="pager"><button data-step="${w.id}:-1" aria-label="Sebelumnya">‹</button>
+      <b>${title}</b><button data-step="${w.id}:1" aria-label="Berikutnya" ${v.offset >= 0 ? 'disabled' : ''}>›</button></div>` : ''}
+    <div class="muted small">${shown.length ? `${shown.length} kejadian` : ''}${alarmCount ? `, ${alarmCount} alarm` : ''}</div>
+    ${events || `<div class="muted">${w.events.length ? 'Tidak ada kejadian di periode ini.' : 'Belum ada kejadian.'}</div>`}`;
+  return c.el;
+}
+
+// History filter per child: one day or one week at a time (offset 0 = today / this week), or all.
+const views = (() => { try { return JSON.parse(store.get('care.views')) || {}; } catch { return {}; } })();
+const viewOf = (id) => (views[id] ??= { mode: 'day', offset: 0 });
+const saveViews = () => store.set('care.views', JSON.stringify(views));
+const time = (t) => new Date(t).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+function startOfDay(t, plusDays = 0) { const d = new Date(t); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + plusDays); return d.getTime(); }
+function dayName(t) {
+  const d = startOfDay(t), today = startOfDay(Date.now());
+  if (d === today) return 'Hari ini';
+  if (d === startOfDay(Date.now(), -1)) return 'Kemarin';
+  return new Date(t).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short' });
+}
+/** [from, to, title] for the selected period; weeks run Monday to Sunday. */
+function range(v) {
+  if (v.mode === 'all') return [0, Infinity, 'Semua'];
+  if (v.mode === 'day') { const from = startOfDay(Date.now(), v.offset); return [from, startOfDay(from, 1), dayName(from)]; }
+  const monday = startOfDay(Date.now(), -((new Date().getDay() + 6) % 7) + 7 * v.offset);
+  const sunday = startOfDay(monday, 6);
+  const fmt = (t) => new Date(t).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+  return [monday, startOfDay(monday, 7), v.offset === 0 ? 'Minggu ini' : v.offset === -1 ? 'Minggu lalu' : `${fmt(monday)} – ${fmt(sunday)}`];
+}
+
+let linking = false;
+function render() {
+  const linked = !!token;
+  $('who').textContent = linked && me ? `Masuk sebagai ${me}` : 'Lokasi dan alarm anak di perangkat ini selama halaman terbuka.';
+  $('link').hidden = linked && !linking;
+  $('cancelLink').hidden = !linked;
+  $('status').hidden = $('another').hidden = $('signout').hidden = !linked;
+  $('sound').hidden = !linked || siren.ready;
+  $('relay').textContent = location.host;
+  const caps = [];
+  if (!('Notification' in window) || !window.isSecureContext) caps.push('notifikasi tidak tersedia lewat http biasa');
+  else if (Notification.permission !== 'granted') caps.push('notifikasi mati');
+  if (!('wakeLock' in navigator)) caps.push('layar bisa mati sendiri');
+  $('caps').textContent = caps.length ? `Di browser ini: ${caps.join(', ')}. Biarkan halaman terbuka dan layar menyala.` : '';
+  const box = $('wearers');
+  for (const [id, c] of cards) if (!wearers.has(id)) { c.map?.remove(); c.el.remove(); cards.delete(id); }
+  $('empty')?.remove();
+  if (!linked) return;
+  if (!wearers.size) { box.insertAdjacentHTML('beforeend', '<div class="card muted" id="empty">Belum mengikuti siapa pun.</div>'); return; }
+  for (const w of wearers.values()) {
+    const el = cardFor(w).el;
+    if (!el.isConnected) box.appendChild(el); // in the page before Leaflet measures the map
+    renderWearer(w);
+  }
+  if (!$('name').value) $('name').value = me;
+}
+
+// --- Linking -----------------------------------------------------------------------------------
+
+function checkForm() { $('linkBtn').disabled = !(/^\d{6}$/.test($('code').value) && $('name').value.trim()); }
+$('code').addEventListener('input', (e) => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6); checkForm(); });
+$('name').addEventListener('input', checkForm);
+
+$('linkForm').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const msg = $('linkMsg');
+  $('linkBtn').disabled = true;
+  msg.className = 'msg'; msg.textContent = 'Menghubungkan…';
+  enableSound(); // the tap counts as the gesture that lets the page ring later
+  try {
+    const name = $('name').value.trim();
+    const r = await api('POST', '/v1/link', { code: $('code').value, name }, token);
+    if (r.token) { token = r.token; store.set('care.token', token); me = name; store.set('care.name', me); }
+    msg.className = 'msg ok'; msg.textContent = `Terhubung ke ${r.wearer.name}.`;
+    $('code').value = '';
+    linking = false;
+    await loadDashboard();
+    if (!streamCtrl || streamCtrl.signal.aborted) stream();
+  } catch (err) {
+    msg.className = 'msg bad';
+    msg.textContent = err.status === 404 ? 'Kode salah atau sudah kedaluwarsa. Minta kode baru.' : `Gagal menghubungkan: ${err.message}`;
+  }
+  checkForm();
+});
+
+function signOut(reason = '') {
+  streamCtrl?.abort();
+  token = null; lastEventId = null; wearers = new Map(); ringing = [];
+  store.set('care.token', null); store.set('care.lastEventId', null);
+  updateAlarm();
+  $('linkMsg').className = 'msg bad'; $('linkMsg').textContent = reason;
+  render();
+}
+
+$('another').addEventListener('click', () => { linking = true; $('linkMsg').textContent = ''; render(); $('code').focus(); });
+$('cancelLink').addEventListener('click', () => { linking = false; render(); });
+$('signout').addEventListener('click', () => { if (confirm('Berhenti menerima alarm di browser ini?')) signOut(); });
+$('soundBtn').addEventListener('click', enableSound);
+$('ackBtn').addEventListener('click', () => ringing[0] && acknowledge(ringing[0].id, $('ackBtn')));
+$('wearers').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-ack]');
+  if (b) return acknowledge(Number(b.dataset.ack), b);
+  const t = e.target.closest('[data-view]'), s = e.target.closest('[data-step]');
+  if (t) { const [id, mode] = t.dataset.view.split(':'); views[id] = { mode, offset: 0 }; }
+  else if (s) { const [id, step] = s.dataset.step.split(':'); const v = viewOf(id); v.offset = Math.min(0, v.offset + Number(step)); }
+  else return;
+  saveViews();
+  render();
+});
+// Any tap on the page also unlocks audio, so a reload followed by a tap is enough.
+document.addEventListener('pointerdown', () => { if (token && !siren.ready) enableSound(); }, { once: false });
+
+setInterval(() => { if (token && !ringing.length) render(); }, 5_000); // keep "12 dtk lalu" fresh
+window.addEventListener('DOMContentLoaded', () => { render(); if (token) stream(); });
+</script>
+</body>
+</html>

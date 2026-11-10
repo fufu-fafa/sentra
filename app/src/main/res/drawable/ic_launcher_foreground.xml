@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Three vibration arcs (kiri, tengah, kanan) under a direction arrow. -->
+    <path
+        android:strokeColor="#E6EDF3"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:pathData="M54,70 L54,36 M40,50 L54,36 L68,50" />
+    <path
+        android:strokeColor="#4F8CFF"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M34,74 A28,28 0 0,0 74,74" />
+</vector>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Debug builds start at a relay on the computer running the emulator (10.0.2.2 is the host).
+         A real phone can't reach that address, so it scans its WiFi for the relay instead
+         (Setelan → Cari relay di WiFi ini). -->
+    <string name="default_relay_url" translatable="false">http://10.0.2.2:8787</string>
+</resources>
