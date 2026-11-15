@@ -5,14 +5,46 @@ motors and an ultrasonic sensor on a XIAO ESP32-C3 (Desain Teknis v1.0). This re
 the MIT App Inventor app of §9 with a native Kotlin app. The BLE contract of Bab 8 and the
 navigation algorithm of §9.5 are kept as specified.
 
-- [`app/`](app): one APK, two modes, chosen on first launch
-  - **Anak**: the child's phone. Connects to the sleeve, records routes, navigates with vibration
-    and voice, Mode Demo for the booth.
-  - **Orang tua (SENTRA Care)**: map, status, history and full-screen alarms.
-- [`relay/`](relay): the server between the two ([details](relay/README.md)).
+- [`app/`](app/README.md): one APK, two modes, chosen on first launch, both in the same purple
+  SENTRA design
+  - **Anak** (SENTRA): the child's phone. Connects to the sleeve, records routes, navigates with
+    vibration and voice, keeps a trip history, Mode Demo for the booth.
+  - **Orang tua** (SENTRA Care, pink): dashboard, live map, trip history and full-screen alarms.
+- [`server_relay/`](server_relay/README.md): the server between the two.
 
 The relay is an add-on. Navigation and the sleeve work with no internet; events and GPS fixes wait
 in a queue on the child's phone and are sent when the relay can be reached.
+
+## Tech stack
+
+| Part | Stack |
+|---|---|
+| Android app | Kotlin 2.3, Jetpack Compose (Material 3), Coroutines/Flow, Room + KSP, DataStore, Play Services Location, osmdroid (OpenStreetMap, no API key), Android TextToSpeech, optional Firebase Cloud Messaging. minSdk 26, targetSdk 36. Gradle 9.3.1, AGP 9.1.1 |
+| Relay | Node.js ≥ 22 with built-in `node:sqlite` and `node:http`, Server-Sent Events, optional `firebase-admin` for push |
+| Web SENTRA Care | One HTML page served by the relay, Leaflet 1.9.4 |
+
+## Directory map
+
+| Path | What it is |
+|---|---|
+| [`app/`](app/README.md) | Android module: build file, ProGuard rules |
+| [`app/src/`](app/src/README.md) | Source sets: manifest, debug overrides (local relay, plain HTTP) |
+| [`app/src/main/java/com/sentra/`](app/src/main/java/com/sentra/README.md) | `SentraApp`, `ChildManager` (mode Anak engine), GPS source, foreground service, voice |
+| [`…/alert/`](app/src/main/java/com/sentra/alert/README.md) | Event types and how a parent's phone reacts to each |
+| [`…/ble/`](app/src/main/java/com/sentra/ble/README.md) | BLE contract (Bab 8), GATT client, scanner, simulated sleeve |
+| [`…/care/`](app/src/main/java/com/sentra/care/README.md) | SENTRA Care: live stream, push, alarm screen, history helpers |
+| [`…/data/`](app/src/main/java/com/sentra/data/README.md) | Room (routes, trips, outbox), settings, uploader, CSV test log |
+| [`…/nav/`](app/src/main/java/com/sentra/nav/README.md) | Geometry and the §9.5 navigation state machine |
+| [`…/relay/`](app/src/main/java/com/sentra/relay/README.md) | HTTP client for the relay, relay discovery on the WiFi |
+| [`…/ui/`](app/src/main/java/com/sentra/ui/README.md) | Compose screens for both modes, theme, map, view model |
+| [`app/src/main/res/`](app/src/main/res/README.md) | Icons, colours, window theme |
+| [`app/src/test/`](app/src/test/README.md) | JVM unit tests |
+| [`gradle/`](gradle/README.md) | Version catalog and wrapper |
+| [`server_relay/`](server_relay/README.md) | Relay server, browser SENTRA Care, push, end-to-end test, fake child |
+
+Root files: `build.gradle.kts` (plugins only), `settings.gradle.kts` (repositories, `:app`),
+`gradle.properties` (4 GB heap, build cache, AndroidX), `gradlew` / `gradlew.bat`, `.gitignore`
+(also keeps keys, databases and CSV logs out of git).
 
 ## Build
 
@@ -23,18 +55,18 @@ JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradle
 ```
 
 The APK lands in `app/build/outputs/apk/debug/app-debug.apk`. No Firebase setup is needed to
-build; see [Push](relay/README.md#push-firebase-cloud-messaging-optional).
+build; see [Push](server_relay/README.md#push-firebase-cloud-messaging-optional).
 
 ## Try it without a sleeve, without walking and without a server
 
-1. Start the relay on this computer: `cd relay && node --disable-warning=ExperimentalWarning server.mjs`.
+1. Start the relay on this computer: `cd server_relay && node --disable-warning=ExperimentalWarning server.mjs`.
 2. Install the debug APK on a phone on the same WiFi and choose **Anak**.
 3. **Setelan → Uji tanpa alat**: switch on **Sleeve simulasi** and **GPS simulasi**, and tap
    **Tambah rute contoh**.
 4. **Setelan → Orang tua**: **Cari relay di WiFi ini**, then **Undang orang tua** for a 6-digit code.
 5. Open `http://<this computer>:8787/` in a browser (or a second phone in mode **Orang tua**) and
    type the code.
-6. **Beranda → Mulai navigasi**. The position walks along the route; the phone speaks the turns,
+6. **Beranda → Mulai Navigasi** (it starts the selected route; with none selected it opens **Rute**). The position walks along the route; the phone speaks the turns,
    the simulated sleeve shows which motors would vibrate, and the marker moves on the parents' map.
    **Simulasikan keluar rute** raises the KELUAR_RUTE alarm.
 
@@ -48,20 +80,6 @@ advertises the SENTRA service or a name starting with `SENTRA`, connects to the 
 remembers it; after that it reconnects by itself. At the competition, set **Setelan → Sleeve → Hanya sambung ke nama ini** to
 `SENTRA-01` so it ignores other sleeves in the room. Only one phone can be connected to a sleeve
 at a time, so disconnect nRF Connect first.
-
-## Where things are
-
-| Package | Contents |
-|---|---|
-| `ble/` | `SentraProtocol` (Bab 8: UUIDs, commands, message parser), `SentraConnection` (GATT client), `BleScanner`, `FakeSleeve` |
-| `nav/` | `Geo` (flat-earth distance and bearing, turn classification) and `NavEngine` (the §9.5 state machine). Pure Kotlin, unit tested |
-| `loc/` | Fused GPS at 1 s, and the simulated walk |
-| `ChildManager` | Mode Anak: sleeve link, 2 s PING, navigation, voice, upload loop |
-| `service/` | Foreground service that keeps all of that alive with the screen off |
-| `data/` | Room (routes, event and location outbox), settings, `Uploader`, `TestLogger` (CSV for Bab 10) |
-| `relay/` | HTTP client for the relay, relay discovery on the local network |
-| `care/`, `alert/` | SENTRA Care: live stream, push, alarm screen, notification rules |
-| `ui/` | Compose screens for both modes, the OpenStreetMap view |
 
 ## Decisions beyond the design document
 
@@ -77,7 +95,8 @@ at a time, so disconnect nRF Connect first.
 
 ## Not done yet
 
-- Never run on a phone or against the real sleeve: so far it compiles, its unit tests pass and the
-  relay is tested end to end.
+- Never run against the real sleeve. Mode Anak has run on one phone (Samsung SM-G990E) with the
+  simulated sleeve and GPS; SENTRA Care has not been checked on a phone since the redesign.
+- The browser SENTRA Care (`server_relay/web`) still has the old dark design.
 - Deployment of the relay to the VPS, and Firebase push.
 - Pairing by QR code (the 6-digit code works).

@@ -1,4 +1,4 @@
-# SENTRA relay
+# server_relay
 
 The child's phone (mode Anak) uploads trip events, GPS fixes and a heartbeat. The parents' phones
 (mode Orang tua, SENTRA Care) get them over a live Server-Sent Events stream and, for alarms, by
@@ -7,12 +7,16 @@ SQLite; the one package is `firebase-admin`, and without it or its key the relay
 
 | | |
 |---|---|
-| `server.mjs` | The relay. `PORT` (default 8787), `DB_PATH`, `LAN_ONLY` (default on) |
-| `web/index.html` | SENTRA Care in a browser, served at `/`: map (Leaflet + OpenStreetMap), status, history, alarm |
+| `server.mjs` | The relay: HTTP API, SQLite (`node:sqlite`), SSE stream, offline and re-push timers. `PORT` (default 8787), `DB_PATH` (default `relay.db` here), `LAN_ONLY` (default on); `OFFLINE_NAV_MS`, `OFFLINE_IDLE_MS`, `TICK_MS`, `ESCALATE_AFTER_MS` for testing |
+| `web/index.html` | SENTRA Care in a browser, served at `/`: map (Leaflet 1.9.4 + OpenStreetMap, loaded from unpkg), status, history, alarm. Reads the stream with `fetch` because `EventSource` cannot send the bearer token. Still the older dark design, not the app's new look |
 | `push.mjs` | FCM push: high priority for KELUAR_RUTE, TERPUTUS, OFFLINE; normal for ARRIVED, NAV_START, TEST |
 | `test.mjs` | End-to-end test against a throwaway database |
 | `fake-child.mjs` | A pretend child phone that walks a route, for trying the relay and SENTRA Care without the app |
-| `sentra-relay.service` | systemd unit for the VPS |
+| `sentra-relay.service` | systemd unit for the VPS; replace `YOUR_USER` before installing |
+| `package.json`, `package-lock.json` | Node ≥ 22; `npm start` / `npm test` run the server and the test; the one dependency is `firebase-admin` |
+
+The Android side of this API is in [`app/…/relay`](../app/src/main/java/com/sentra/relay/README.md)
+(child's phone) and [`app/…/care`](../app/src/main/java/com/sentra/care/README.md) (parents).
 
 ## Run it locally
 
@@ -46,22 +50,23 @@ WiFi ini**: it asks every address on its network for `/v1/health`.
 
 ## API
 
-The paths and names are fall-bracelet's, so its Android client code carried over: a **wearer** is
-the child's phone and a **caregiver** is a parent. Every phone gets a random bearer token; only
+A **child** is the child's phone (mode Anak) and a **parent** is a parent's phone (SENTRA Care).
+The API was forked from fall-bracelet, which called them wearer and caregiver; a database made
+before the rename is migrated on start-up (tables, columns and tokens are kept). Every phone gets a random bearer token; only
 its SHA-256 is stored.
 
 | Call | Who | What |
 |---|---|---|
-| `POST /v1/wearers` | child phone | Register, returns `token` |
-| `PUT /v1/wearers/me` | child | Rename (the alias the parents see) |
+| `POST /v1/children` | child phone | Register, returns `token` |
+| `PUT /v1/children/me` | child | Rename (the alias the parents see) |
 | `POST /v1/invites` | child | 6-digit code, single use, 15 min |
 | `POST /v1/link` | parent | `{code, name}`; returns a parent token (send an existing one to follow another child) |
-| `GET /v1/caregivers`, `DELETE /v1/caregivers/:id` | child | List / remove linked parents |
+| `GET /v1/parents`, `DELETE /v1/parents/:id` | child | List / remove linked parents |
 | `POST /v1/events` | child | `{deviceAddress, seq, type, occurredAt, message, batteryPct?, lat?, lon?}`. Idempotent on (child, deviceAddress, seq); the phone assigns `seq` |
 | `POST /v1/locations` | child | `{points: [{at, lat, lon, acc?, speed?, bearing?}]}`, up to 500. Idempotent on (child, at) |
 | `POST /v1/heartbeat` | child | `{status, acksSince}`; reply carries acknowledgements and the number of linked parents |
 | `GET /v1/dashboard` | parent | Each followed child with status, latest fix and the last 100 events (`?limit=` up to 1000) |
-| `GET /v1/wearers/:id/track` | parent | Fixes oldest first; `?since=` (default last 2 h), `?limit=` up to 5000 |
+| `GET /v1/children/:id/track` | parent | Fixes oldest first; `?since=` (default last 2 h), `?limit=` up to 5000 |
 | `POST /v1/events/:id/ack` | parent | "Dilihat oleh …" |
 | `PUT /v1/push-token` | parent | `{token}`: this phone's FCM token |
 | `GET /v1/stream` | parent | SSE: `hello`, `event`, `status`, `location`, `ack`, `offline`, `online`, `unlinked`. `Last-Event-ID` replays events of the last 24 h |

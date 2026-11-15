@@ -53,16 +53,16 @@ export function pushPayload(type, data) {
       return {
         urgent: data.alarm === true,
         data: strings({
-          kind: 'event', id: data.id, wearerId: data.wearerId, wearerName: data.wearerName, type: data.type,
+          kind: 'event', id: data.id, childId: data.childId, childName: data.childName, type: data.type,
           batteryPct: data.batteryPct, occurredAt: data.occurredAt, lat: data.lat, lon: data.lon, message: data.message,
           escalated: data.escalated ? 1 : 0, escalations: data.escalations,
         }),
       };
     case 'offline':
       // Mid-trip silence also arrives as an OFFLINE alarm event; this one only updates the status.
-      return { urgent: false, data: strings({ kind: 'offline', wearerId: data.wearerId, name: data.name, navigating: data.navigating ? 1 : 0 }) };
+      return { urgent: false, data: strings({ kind: 'offline', childId: data.childId, name: data.name, navigating: data.navigating ? 1 : 0 }) };
     case 'online':
-      return { urgent: false, data: strings({ kind: 'online', wearerId: data.wearerId, name: data.name }) };
+      return { urgent: false, data: strings({ kind: 'online', childId: data.childId, name: data.name }) };
     // Stops the alarm ringing on the other parents' phones. Normal priority: Android stops
     // honouring high priority for an app whose high-priority pushes don't show a notification.
     case 'ack':

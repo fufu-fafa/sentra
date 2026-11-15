@@ -44,7 +44,7 @@
   button.inline { width: auto; padding: 6px 14px; margin-top: 6px; }
   .msg { margin-top: 8px; font-size: 14px; }
   .msg.bad { color: var(--bad); } .msg.ok { color: var(--ok); }
-  .wearer h2 { font-size: 22px; margin: 0; }
+  .child h2 { font-size: 22px; margin: 0; }
   .map { height: 300px; border-radius: 10px; border: 1px solid var(--border); margin-top: 12px; background: var(--bg); z-index: 0; }
   .nomap { display: flex; align-items: center; justify-content: center; text-align: center; padding: 16px; color: var(--muted); }
   .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0; }
@@ -97,7 +97,7 @@
   <div class="muted small" id="caps"></div>
 </div>
 
-<div id="wearers"></div>
+<div id="children"></div>
 
 <div id="link" class="card" hidden>
   <p class="label">Hubungkan ke HP anak</p>
@@ -145,7 +145,7 @@ const TRAIL_MS = 2 * 3600_000;      // how much of the child's track the map dra
 
 let token = store.get('care.token');
 let me = store.get('care.name') || '';
-let wearers = new Map();  // id -> child from /v1/dashboard, kept current by the stream
+let children = new Map();  // id -> child from /v1/dashboard, kept current by the stream
 let lastEventId = Number(store.get('care.lastEventId')) || null;
 let ringing = [];         // unacknowledged alarm events, oldest first
 let streamCtrl = null;
@@ -165,12 +165,12 @@ async function api(method, path, body, auth = token) {
 
 async function loadDashboard() {
   const d = await api('GET', '/v1/dashboard?limit=1000'); // enough history to page back through weeks
-  const old = wearers;
-  wearers = new Map(d.wearers.map((w) => [w.id, { ...w, track: old.get(w.id)?.track || [] }]));
-  for (const w of d.wearers) for (const e of w.events) maybeRing({ ...e, wearerName: w.name });
+  const old = children;
+  children = new Map(d.children.map((w) => [w.id, { ...w, track: old.get(w.id)?.track || [] }]));
+  for (const w of d.children) for (const e of w.events) maybeRing({ ...e, childName: w.name });
   render();
-  for (const w of wearers.values()) {
-    api('GET', `/v1/wearers/${w.id}/track?since=${Date.now() - TRAIL_MS}`)
+  for (const w of children.values()) {
+    api('GET', `/v1/children/${w.id}/track?since=${Date.now() - TRAIL_MS}`)
       .then((t) => { w.track = t.points; render(); }).catch(() => {});
   }
 }
@@ -223,20 +223,20 @@ async function stream() {
 }
 
 function onMessage(type, d) {
-  const w = wearers.get(d.wearerId);
+  const w = children.get(d.childId);
   switch (type) {
     case 'event': {
       if (!w) { loadDashboard().catch(() => {}); break; }
       const i = w.events.findIndex((e) => e.id === d.id);
       if (i >= 0) w.events[i] = { ...w.events[i], ...d }; else w.events.unshift(d);
       w.events.sort((a, b) => b.occurredAt - a.occurredAt || b.id - a.id);
-      maybeRing({ ...d, wearerName: d.wearerName || w.name });
+      maybeRing({ ...d, childName: d.childName || w.name });
       break;
     }
     case 'status': if (w) { w.status = d.status; w.navigating = d.navigating; w.lastHeartbeat = d.at; w.offline = false; } break;
     case 'location':
       if (w) {
-        const { wearerId, ...p } = d;
+        const { childId, ...p } = d;
         w.location = p; w.lastHeartbeat = Date.now(); w.offline = false;
         w.track.push(p);
         while (w.track.length && w.track[0].at < Date.now() - TRAIL_MS) w.track.shift();
@@ -252,7 +252,7 @@ function onMessage(type, d) {
       ringing = ringing.filter((e) => e.id !== d.eventId);
       updateAlarm();
       break;
-    case 'unlinked': wearers.delete(d.wearerId); ringing = ringing.filter((e) => e.wearerId !== d.wearerId); updateAlarm(); break;
+    case 'unlinked': children.delete(d.childId); ringing = ringing.filter((e) => e.childId !== d.childId); updateAlarm(); break;
   }
   render();
 }
@@ -262,13 +262,13 @@ function onMessage(type, d) {
 function maybeRing(e) {
   if (e.ackedAt || Date.now() - e.occurredAt > RING_WINDOW_MS) return;
   if (!ALARMS.has(e.type)) {
-    if ((e.type === 'ARRIVED' || e.type === 'NAV_START') && !e.replay) notify(`${LABELS[e.type]} — ${e.wearerName}`, e.message || '', 'event-' + e.id);
+    if ((e.type === 'ARRIVED' || e.type === 'NAV_START') && !e.replay) notify(`${LABELS[e.type]} — ${e.childName}`, e.message || '', 'event-' + e.id);
     return;
   }
   const known = ringing.find((x) => x.id === e.id);
   if (known) { if (e.escalated) Object.assign(known, e); return; }
   ringing.push(e);
-  notify(`${LABELS[e.type]} — ${e.wearerName}`, e.message || 'Buka halaman dan tandai sudah dilihat.', 'event-' + e.id);
+  notify(`${LABELS[e.type]} — ${e.childName}`, e.message || 'Buka halaman dan tandai sudah dilihat.', 'event-' + e.id);
   updateAlarm();
 }
 
@@ -277,7 +277,7 @@ function updateAlarm() {
   $('alarm').classList.toggle('on', !!e);
   if (!e) { siren.stop(); document.title = 'SENTRA Care'; return; }
   $('alarmTitle').textContent = ALARM_TITLES[e.type] || e.type;
-  $('alarmWho').textContent = `${e.wearerName} · ${time(e.occurredAt)}`;
+  $('alarmWho').textContent = `${e.childName} · ${time(e.occurredAt)}`;
   $('alarmMsg').textContent = e.message || '';
   $('alarmMore').textContent = [
     e.escalated ? 'Belum ada yang melihat' : '',
@@ -287,7 +287,7 @@ function updateAlarm() {
   $('alarmMute').hidden = siren.ready;
   $('ackBtn').disabled = false;
   $('ackBtn').textContent = 'Sudah saya lihat';
-  document.title = `⚠ ${LABELS[e.type]} — ${e.wearerName}`;
+  document.title = `⚠ ${LABELS[e.type]} — ${e.childName}`;
   siren.start();
 }
 
@@ -296,7 +296,7 @@ async function acknowledge(id, btn) {
   try {
     await api('POST', `/v1/events/${id}/ack`);
     ringing = ringing.filter((e) => e.id !== id);
-    for (const w of wearers.values()) {
+    for (const w of children.values()) {
       const e = w.events.find((x) => x.id === id);
       if (e && !e.ackedAt) Object.assign(e, { ackedBy: me || 'Anda', ackedAt: Date.now() });
     }
@@ -353,13 +353,13 @@ async function enableSound() {
 
 // --- Map (Leaflet + OpenStreetMap), one per child, kept across re-renders -------------------------
 
-const cards = new Map(); // wearerId -> { el, info, mapEl, map, marker, circle, trail, routeLine, followed }
+const cards = new Map(); // childId -> { el, info, mapEl, map, marker, circle, trail, routeLine, followed }
 
 function cardFor(w) {
   let c = cards.get(w.id);
   if (c) return c;
   const el = document.createElement('div');
-  el.className = 'card wearer';
+  el.className = 'card child';
   el.innerHTML = '<div data-part="head"></div><div class="map" data-part="map"></div><div data-part="info"></div>';
   c = { el, head: el.querySelector('[data-part=head]'), mapEl: el.querySelector('[data-part=map]'), info: el.querySelector('[data-part=info]') };
   cards.set(w.id, c);
@@ -417,7 +417,7 @@ function ago(t) {
 }
 const when = (t) => new Date(t).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
-function renderWearer(w) {
+function renderChild(w) {
   const c = cardFor(w);
   const s = w.status || {};
   c.head.innerHTML = `<div class="row"><h2 class="grow">${esc(w.name)}</h2>
@@ -503,15 +503,15 @@ function render() {
   else if (Notification.permission !== 'granted') caps.push('notifikasi mati');
   if (!('wakeLock' in navigator)) caps.push('layar bisa mati sendiri');
   $('caps').textContent = caps.length ? `Di browser ini: ${caps.join(', ')}. Biarkan halaman terbuka dan layar menyala.` : '';
-  const box = $('wearers');
-  for (const [id, c] of cards) if (!wearers.has(id)) { c.map?.remove(); c.el.remove(); cards.delete(id); }
+  const box = $('children');
+  for (const [id, c] of cards) if (!children.has(id)) { c.map?.remove(); c.el.remove(); cards.delete(id); }
   $('empty')?.remove();
   if (!linked) return;
-  if (!wearers.size) { box.insertAdjacentHTML('beforeend', '<div class="card muted" id="empty">Belum mengikuti siapa pun.</div>'); return; }
-  for (const w of wearers.values()) {
+  if (!children.size) { box.insertAdjacentHTML('beforeend', '<div class="card muted" id="empty">Belum mengikuti siapa pun.</div>'); return; }
+  for (const w of children.values()) {
     const el = cardFor(w).el;
     if (!el.isConnected) box.appendChild(el); // in the page before Leaflet measures the map
-    renderWearer(w);
+    renderChild(w);
   }
   if (!$('name').value) $('name').value = me;
 }
@@ -532,7 +532,7 @@ $('linkForm').addEventListener('submit', async (ev) => {
     const name = $('name').value.trim();
     const r = await api('POST', '/v1/link', { code: $('code').value, name }, token);
     if (r.token) { token = r.token; store.set('care.token', token); me = name; store.set('care.name', me); }
-    msg.className = 'msg ok'; msg.textContent = `Terhubung ke ${r.wearer.name}.`;
+    msg.className = 'msg ok'; msg.textContent = `Terhubung ke ${r.child.name}.`;
     $('code').value = '';
     linking = false;
     await loadDashboard();
@@ -546,7 +546,7 @@ $('linkForm').addEventListener('submit', async (ev) => {
 
 function signOut(reason = '') {
   streamCtrl?.abort();
-  token = null; lastEventId = null; wearers = new Map(); ringing = [];
+  token = null; lastEventId = null; children = new Map(); ringing = [];
   store.set('care.token', null); store.set('care.lastEventId', null);
   updateAlarm();
   $('linkMsg').className = 'msg bad'; $('linkMsg').textContent = reason;
@@ -558,7 +558,7 @@ $('cancelLink').addEventListener('click', () => { linking = false; render(); });
 $('signout').addEventListener('click', () => { if (confirm('Berhenti menerima alarm di browser ini?')) signOut(); });
 $('soundBtn').addEventListener('click', enableSound);
 $('ackBtn').addEventListener('click', () => ringing[0] && acknowledge(ringing[0].id, $('ackBtn')));
-$('wearers').addEventListener('click', (e) => {
+$('children').addEventListener('click', (e) => {
   const b = e.target.closest('[data-ack]');
   if (b) return acknowledge(Number(b.dataset.ack), b);
   const t = e.target.closest('[data-view]'), s = e.target.closest('[data-step]');

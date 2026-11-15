@@ -35,7 +35,7 @@ const metres = (a, b) => Math.hypot((b[1] - a[1]) * 111320 * Math.cos(((a[0] + b
 
 let state = existsSync(STATE) ? JSON.parse(readFileSync(STATE, 'utf8')) : {};
 if (state.base !== base || !state.token) {
-  const w = await api('POST', '/v1/wearers', null, { name: 'Anak (simulasi)' });
+  const w = await api('POST', '/v1/children', null, { name: 'Anak (simulasi)' });
   state = { base, token: w.token, seq: 0 };
 }
 const save = () => writeFileSync(STATE, JSON.stringify(state));

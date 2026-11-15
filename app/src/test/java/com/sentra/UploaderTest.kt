@@ -92,7 +92,7 @@ class UploaderTest {
         assertTrue(sink.events.isEmpty())
     }
 
-    // --- Wire format: must match relay/server.mjs ----------------------------------------------
+    // --- Wire format: must match server_relay/server.mjs ----------------------------------------------
 
     @Test fun eventJsonUsesThePhonesRowIdAsSeq() {
         val j = ChildRelay.eventJson(event(7, "KELUAR_RUTE"))
@@ -140,7 +140,7 @@ class UploaderTest {
 
     @Test fun eventFromTheRelay() {
         val e = RemoteEvent.from(
-            JSONObject("""{"id":9,"wearerId":3,"type":"OFFLINE","batteryPct":null,"occurredAt":5000,"lat":-6.9,"lon":107.6,
+            JSONObject("""{"id":9,"childId":3,"type":"OFFLINE","batteryPct":null,"occurredAt":5000,"lat":-6.9,"lon":107.6,
                 "message":"x","ackedBy":null,"ackedAt":null,"alarm":true}""")
         )
         assertEquals(CareEventType.OFFLINE, e.type)
@@ -148,7 +148,7 @@ class UploaderTest {
         assertNull(e.ackedBy)
         assertNull(e.ackedAt)
         assertEquals(-6.9, e.lat!!, 1e-9)
-        assertEquals(CareEventType.UNKNOWN, RemoteEvent.from(JSONObject("""{"id":1,"wearerId":1,"type":"NEW_THING","occurredAt":1}""")).type)
+        assertEquals(CareEventType.UNKNOWN, RemoteEvent.from(JSONObject("""{"id":1,"childId":1,"type":"NEW_THING","occurredAt":1}""")).type)
     }
 
     @Test fun alarmsAreTheThreeTheRelayRePushes() {

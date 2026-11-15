@@ -120,7 +120,7 @@ private val ID = Locale("id", "ID")
 fun CareScreen(vm: AppViewModel) {
     val settings by vm.settings.collectAsState()
     val children by vm.children.collectAsState()
-    val linked = settings.caregiverToken != null
+    val linked = settings.parentToken != null
     var tab by rememberSaveable { mutableStateOf(CareTab.Home) }
     var mapOpen by rememberSaveable { mutableStateOf(false) }
     var selectedId by rememberSaveable { mutableLongStateOf(-1L) }
@@ -139,7 +139,7 @@ fun CareScreen(vm: AppViewModel) {
                     SentraLogo(130.dp, care = true)
                 }
                 Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    LinkCard(vm, settings.relayUrl, settings.caregiverName, onCancel = null) {}
+                    LinkCard(vm, settings.relayUrl, settings.parentName, onCancel = null) {}
                     SoftButton("Pakai HP ini sebagai HP anak", { vm.setMode(AppMode.CHILD) }, Modifier.fillMaxWidth(), icon = Icons.Rounded.SwapHoriz)
                     Spacer(Modifier.height(16.dp))
                 }
@@ -605,7 +605,7 @@ private fun CareSettingsTab(vm: AppViewModel) {
     var confirmMode by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        ScreenTitle("Setelan", if (settings.caregiverName.isNotBlank()) "Masuk sebagai ${settings.caregiverName}" else null)
+        ScreenTitle("Setelan", if (settings.parentName.isNotBlank()) "Masuk sebagai ${settings.parentName}" else null)
         Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Card {
                 SectionLabel("Anak yang diikuti", icon = Icons.Rounded.ChildCare, tint = Tokens.Pink)
@@ -622,7 +622,7 @@ private fun CareSettingsTab(vm: AppViewModel) {
                 Text(settings.relayUrl, fontFamily = Mono, style = MaterialTheme.typography.bodySmall, color = AppTheme.extra.muted)
             }
             if (linking) {
-                LinkCard(vm, settings.relayUrl, settings.caregiverName, onCancel = { linking = false }) { linking = false }
+                LinkCard(vm, settings.relayUrl, settings.parentName, onCancel = { linking = false }) { linking = false }
             } else {
                 SoftButton("Hubungkan anak lain", { vm.clearLinkResult(); linking = true }, Modifier.fillMaxWidth(), icon = Icons.Rounded.GroupAdd, color = Tokens.Pink, background = Tokens.PinkSoft)
             }

@@ -11,7 +11,7 @@ import java.net.URL
 /** A relay reply that wasn't 2xx. [status] 0 means the relay couldn't be reached. */
 class RelayException(val status: Int, message: String) : IOException(message)
 
-/** Minimal JSON-over-HTTP client for relay/server.mjs. No dependencies beyond the platform. */
+/** Minimal JSON-over-HTTP client for server_relay/server.mjs. No dependencies beyond the platform. */
 class RelayClient(private val baseUrl: String, private val token: String?) {
 
     suspend fun get(path: String): JSONObject = call("GET", path, null)

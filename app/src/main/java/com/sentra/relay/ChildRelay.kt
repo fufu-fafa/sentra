@@ -15,8 +15,7 @@ data class HeartbeatReply(val acks: List<Ack>, val parents: Int)
 
 /**
  * The child phone's side of the relay: registration, event and location upload, heartbeats,
- * invites. The relay's API keeps fall-bracelet's names: the child's phone is a "wearer" there and
- * a parent a "caregiver".
+ * invites.
  */
 class ChildRelay(
     private val settings: SettingsRepository,
@@ -24,23 +23,23 @@ class ChildRelay(
 ) : TelemetrySink {
 
     override val configured: Boolean
-        get() = current().relayUrl.isNotBlank() && current().wearerToken != null
+        get() = current().relayUrl.isNotBlank() && current().childToken != null
 
     private fun client(): RelayClient {
         val s = current()
-        return RelayClient(s.relayUrl, s.wearerToken ?: throw RelayException(401, "belum terdaftar di relay"))
+        return RelayClient(s.relayUrl, s.childToken ?: throw RelayException(401, "belum terdaftar di relay"))
     }
 
     /** Registers this phone as a child's phone the first time a relay address is set. */
     suspend fun ensureRegistered() {
         val s = current()
-        if (s.relayUrl.isBlank() || s.wearerToken != null) return
-        val r = RelayClient(s.relayUrl, null).post("/v1/wearers", JSONObject().put("name", s.childName.ifBlank { "Anak" }))
-        settings.setWearerToken(r.getString("token"))
+        if (s.relayUrl.isBlank() || s.childToken != null) return
+        val r = RelayClient(s.relayUrl, null).post("/v1/children", JSONObject().put("name", s.childName.ifBlank { "Anak" }))
+        settings.setChildToken(r.getString("token"))
     }
 
     suspend fun rename(name: String) {
-        if (configured && name.isNotBlank()) client().put("/v1/wearers/me", JSONObject().put("name", name))
+        if (configured && name.isNotBlank()) client().put("/v1/children/me", JSONObject().put("name", name))
     }
 
     override suspend fun upload(event: EventEntity): Boolean = runCatching {
@@ -65,7 +64,7 @@ class ChildRelay(
                 val a = acks.getJSONObject(i)
                 Ack(a.getLong("seq"), a.getString("acked_by"), a.getLong("acked_at"))
             },
-            parents = r.optInt("caregivers"),
+            parents = r.optInt("parents"),
         )
     }
 
@@ -75,7 +74,7 @@ class ChildRelay(
     }
 
     suspend fun parents(): List<LinkedParent> {
-        val a = client().get("/v1/caregivers").getJSONArray("caregivers")
+        val a = client().get("/v1/parents").getJSONArray("parents")
         return List(a.length()) { i ->
             val c = a.getJSONObject(i)
             LinkedParent(c.getLong("id"), c.getString("name"), c.getLong("linkedAt"))
@@ -83,7 +82,7 @@ class ChildRelay(
     }
 
     suspend fun removeParent(id: Long) {
-        client().delete("/v1/caregivers/$id")
+        client().delete("/v1/parents/$id")
     }
 
     /**
@@ -91,7 +90,7 @@ class ChildRelay(
      * to a different relay. Drop the key so the next round registers again instead of failing forever.
      */
     private suspend fun forgetIfUnknown(error: Throwable) {
-        if ((error as? RelayException)?.status == 401) settings.setWearerToken(null)
+        if ((error as? RelayException)?.status == 401) settings.setChildToken(null)
     }
 
     companion object {

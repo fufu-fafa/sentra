@@ -83,16 +83,16 @@ try {
   assert.equal(health.service, 'sentra-relay');
   assert.match(health.relayId, /^[0-9a-f]{16}$/);
 
-  const w = (await api('POST', '/v1/wearers', null, { name: 'Anak 1' })).json;
+  const w = (await api('POST', '/v1/children', null, { name: 'Anak 1' })).json;
   assert.ok(w.token);
 
   assert.equal((await api('POST', '/v1/link', null, { code: '000000', name: 'X' })).status, 404, 'bad code refused');
   const invite = (await api('POST', '/v1/invites', w.token)).json;
   const c = (await api('POST', '/v1/link', null, { code: invite.code, name: 'Ibu' })).json;
   assert.ok(c.token);
-  assert.equal(c.wearer.name, 'Anak 1');
+  assert.equal(c.child.name, 'Anak 1');
   assert.equal((await api('POST', '/v1/link', null, { code: invite.code, name: 'Y' })).status, 404, 'invite is single use');
-  assert.equal((await api('GET', '/v1/caregivers', w.token)).json.caregivers.length, 1);
+  assert.equal((await api('GET', '/v1/parents', w.token)).json.parents.length, 1);
   assert.equal((await api('GET', '/v1/dashboard', w.token)).status, 401, 'child token is not a parent token');
 
   // --- Events: idempotent, alarms flagged, acknowledgements reach the child ----------------------
@@ -110,7 +110,7 @@ try {
   assert.equal(s.of('event')[0].data.alarm, false, 'NAV_START is not an alarm');
   const alarm = s.of('event')[1].data;
   assert.equal(alarm.alarm, true, 'KELUAR_RUTE is an alarm');
-  assert.equal(alarm.wearerName, 'Anak 1');
+  assert.equal(alarm.childName, 'Anak 1');
   assert.equal(alarm.lat, -6.9031);
   assert.equal(s.of('status')[0].data.status.routeName, 'Rumah ke sekolah');
   assert.equal((await api('POST', '/v1/events', w.token, event(3, 'OFFLINE'))).status, 400, 'a phone cannot raise OFFLINE');
@@ -119,7 +119,7 @@ try {
   await until(() => s.of('ack').some((m) => m.data.by === 'Ibu'), 'the acknowledgement');
   const hb = (await api('POST', '/v1/heartbeat', w.token, { status: { navigating: true }, acksSince: 0 })).json;
   assert.equal(hb.acks[0].acked_by, 'Ibu', 'child phone learns who saw it');
-  assert.equal(hb.caregivers, 1);
+  assert.equal(hb.parents, 1);
 
   // --- Locations: stored once, newest one fanned out, latest fix on the dashboard ----------------
   const t0 = Date.now() - 10_000;
@@ -138,15 +138,15 @@ try {
   assert.equal(s.of('location').length, 2, 'older fixes are not sent live');
 
   let dash = (await api('GET', '/v1/dashboard', c.token)).json;
-  assert.equal(dash.wearers[0].location.at, t0 + 3000, 'dashboard has the latest fix');
-  assert.equal(dash.wearers[0].navigating, true);
-  assert.equal(dash.wearers[0].events.find((e) => e.id === off.id).ackedBy, 'Ibu');
+  assert.equal(dash.children[0].location.at, t0 + 3000, 'dashboard has the latest fix');
+  assert.equal(dash.children[0].navigating, true);
+  assert.equal(dash.children[0].events.find((e) => e.id === off.id).ackedBy, 'Ibu');
 
-  const track = (await api('GET', `/v1/wearers/${w.wearerId}/track?since=${t0 - 60_000}`, c.token)).json.points;
+  const track = (await api('GET', `/v1/children/${w.childId}/track?since=${t0 - 60_000}`, c.token)).json.points;
   assert.deepEqual(track.map((p) => p.at), [t0 - 5000, t0, t0 + 1000, t0 + 2000, t0 + 3000], 'track is oldest first');
-  assert.equal((await api('GET', `/v1/wearers/${w.wearerId}/track?limit=2`, c.token)).json.points[1].at, t0 + 3000, 'limit keeps the newest part');
-  assert.equal((await api('GET', `/v1/wearers/${w.wearerId}/track`, w.token)).status, 401);
-  assert.equal((await api('GET', '/v1/wearers/999/track', c.token)).status, 404, 'no track for a child you do not follow');
+  assert.equal((await api('GET', `/v1/children/${w.childId}/track?limit=2`, c.token)).json.points[1].at, t0 + 3000, 'limit keeps the newest part');
+  assert.equal((await api('GET', `/v1/children/${w.childId}/track`, w.token)).status, 401);
+  assert.equal((await api('GET', '/v1/children/999/track', c.token)).status, 404, 'no track for a child you do not follow');
 
   // --- Alarms that end by themselves ---------------------------------------------------------
   const lost = (await api('POST', '/v1/events', w.token, event(4, 'TERPUTUS'))).json;
@@ -169,7 +169,7 @@ try {
   assert.equal(offline.data.alarm, true);
   assert.equal(offline.data.lat, fix(0, 3).lat, 'carries the last known position');
   assert.ok(s.of('offline').some((m) => m.data.navigating === true));
-  assert.equal((await api('GET', '/v1/dashboard', c.token)).json.wearers[0].offline, true);
+  assert.equal((await api('GET', '/v1/dashboard', c.token)).json.children[0].offline, true);
   await wait(700);
   assert.equal(s.of('event').filter((m) => m.data.type === 'OFFLINE' && !m.data.escalated).length, 1, 'raised once per outage');
 
@@ -177,7 +177,7 @@ try {
   await api('POST', '/v1/locations', w.token, { points: [fix(Date.now(), 4)] });
   await until(() => s.of('online').length, 'the online message');
   await until(() => s.of('ack').some((m) => m.data.eventId === offline.data.id), 'OFFLINE to be resolved');
-  assert.equal((await api('GET', '/v1/dashboard', c.token)).json.wearers[0].offline, false);
+  assert.equal((await api('GET', '/v1/dashboard', c.token)).json.children[0].offline, false);
 
   // An idle phone (no trip) that goes quiet is not an alarm within the trip limit.
   await api('POST', '/v1/heartbeat', w.token, { status: { navigating: false, sleeveConnected: false } });
@@ -193,16 +193,16 @@ try {
   s2.close();
 
   // --- Push rules -------------------------------------------------------------------------------
-  const pushed = (type, alarmFlag) => pushPayload('event', { id: 1, wearerId: 1, type, alarm: alarmFlag, message: 'x' });
+  const pushed = (type, alarmFlag) => pushPayload('event', { id: 1, childId: 1, type, alarm: alarmFlag, message: 'x' });
   assert.equal(pushed('KELUAR_RUTE', true).urgent, true);
   assert.equal(pushed('TERPUTUS', true).urgent, true);
   assert.equal(pushed('OFFLINE', true).urgent, true);
   assert.equal(pushed('ARRIVED', false).urgent, false, 'ARRIVED is normal priority');
   assert.equal(pushed('BELOK_KIRI', false), null, 'turns do not wake the phone');
-  assert.equal(pushPayload('location', { wearerId: 1 }), null, 'locations only go down the stream');
+  assert.equal(pushPayload('location', { childId: 1 }), null, 'locations only go down the stream');
 
-  await api('DELETE', `/v1/caregivers/${c.caregiverId}`, w.token);
-  assert.equal((await api('GET', '/v1/dashboard', c.token)).json.wearers.length, 0, 'unlinked parent sees nothing');
+  await api('DELETE', `/v1/parents/${c.parentId}`, w.token);
+  assert.equal((await api('GET', '/v1/dashboard', c.token)).json.children.length, 0, 'unlinked parent sees nothing');
 
   console.log('relay tests passed');
 } finally {

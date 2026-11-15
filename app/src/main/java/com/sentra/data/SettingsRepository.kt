@@ -34,10 +34,10 @@ data class AppSettings(
     /** The relay's own id, so a new address for the same relay keeps this phone's links. */
     val relayId: String? = null,
     /** This phone's key as the child's phone on the relay, once registered. */
-    val wearerToken: String? = null,
+    val childToken: String? = null,
     /** This phone's key as a parent on the relay, once linked. */
-    val caregiverToken: String? = null,
-    val caregiverName: String = "",
+    val parentToken: String? = null,
+    val parentName: String = "",
     /** Newest acknowledgement the child phone has seen, so heartbeats only fetch newer ones. */
     val acksSince: Long = 0,
     /** Last parent stream event id, so a reconnect replays what was missed. */
@@ -64,9 +64,10 @@ class SettingsRepository(private val context: Context) {
         val childName = stringPreferencesKey("child_name")
         val relayUrl = stringPreferencesKey("relay_url")
         val relayId = stringPreferencesKey("relay_id")
-        val wearerToken = stringPreferencesKey("wearer_token")
-        val caregiverToken = stringPreferencesKey("caregiver_token")
-        val caregiverName = stringPreferencesKey("caregiver_name")
+        // Stored under fall-bracelet's old names, so phones that were already linked stay linked.
+        val childToken = stringPreferencesKey("wearer_token")
+        val parentToken = stringPreferencesKey("caregiver_token")
+        val parentName = stringPreferencesKey("caregiver_name")
         val acksSince = longPreferencesKey("acks_since")
         val lastStreamEventId = longPreferencesKey("last_stream_event_id")
         val selectedRoute = longPreferencesKey("selected_route")
@@ -83,9 +84,9 @@ class SettingsRepository(private val context: Context) {
             childName = p[Keys.childName] ?: "Anak",
             relayUrl = p[Keys.relayUrl] ?: defaultRelayUrl,
             relayId = p[Keys.relayId],
-            wearerToken = p[Keys.wearerToken],
-            caregiverToken = p[Keys.caregiverToken],
-            caregiverName = p[Keys.caregiverName] ?: "",
+            childToken = p[Keys.childToken],
+            parentToken = p[Keys.parentToken],
+            parentName = p[Keys.parentName] ?: "",
             acksSince = p[Keys.acksSince] ?: 0,
             lastStreamEventId = p[Keys.lastStreamEventId] ?: 0,
             selectedRouteId = p[Keys.selectedRoute],
@@ -116,19 +117,19 @@ class SettingsRepository(private val context: Context) {
         val known = it[Keys.relayId]
         val sameRelay = relayId == null || known == null || known == relayId
         if (!sameRelay) {
-            it.remove(Keys.wearerToken); it.remove(Keys.caregiverToken); it.remove(Keys.acksSince); it.remove(Keys.lastStreamEventId)
+            it.remove(Keys.childToken); it.remove(Keys.parentToken); it.remove(Keys.acksSince); it.remove(Keys.lastStreamEventId)
         }
         it[Keys.relayUrl] = url.trim()
         if (relayId != null) it[Keys.relayId] = relayId
     }
 
-    suspend fun setWearerToken(token: String?) = edit { if (token == null) it.remove(Keys.wearerToken) else it[Keys.wearerToken] = token }
-    suspend fun setCaregiver(token: String?, name: String) = edit {
-        if (token != null) it[Keys.caregiverToken] = token
-        it[Keys.caregiverName] = name
+    suspend fun setChildToken(token: String?) = edit { if (token == null) it.remove(Keys.childToken) else it[Keys.childToken] = token }
+    suspend fun setParent(token: String?, name: String) = edit {
+        if (token != null) it[Keys.parentToken] = token
+        it[Keys.parentName] = name
     }
-    suspend fun clearCaregiverLink() = edit {
-        it.remove(Keys.caregiverToken)
+    suspend fun clearParentLink() = edit {
+        it.remove(Keys.parentToken)
         it.remove(Keys.lastStreamEventId)
     }
     suspend fun setAcksSince(at: Long) = edit { it[Keys.acksSince] = at }

@@ -17,7 +17,7 @@ enum class CareEventType(val label: String) {
     TEST("Tes alarm"),
     UNKNOWN("Kejadian");
 
-    /** Rings full-screen until a parent acknowledges it. Must match ALARM_TYPES in relay/server.mjs. */
+    /** Rings full-screen until a parent acknowledges it. Must match ALARM_TYPES in server_relay/server.mjs. */
     val isAlarm: Boolean get() = this == KELUAR_RUTE || this == TERPUTUS || this == OFFLINE
 
     /** Good news, shown in green in the history. */

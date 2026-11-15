@@ -48,7 +48,7 @@ data class RemoteEvent(
     companion object {
         fun from(o: JSONObject) = RemoteEvent(
             id = o.getLong("id"),
-            childId = o.getLong("wearerId"),
+            childId = o.getLong("childId"),
             type = CareEventType.from(o.optString("type")),
             batteryPct = if (o.isNull("batteryPct")) null else o.optInt("batteryPct"),
             occurredAt = o.getLong("occurredAt"),
@@ -184,7 +184,7 @@ class CareManager(
      * background instead.
      */
     fun start() {
-        val link = settings.settings.map { s -> (s.caregiverToken.takeIf { s.mode == AppMode.PARENT }) to s.relayUrl }
+        val link = settings.settings.map { s -> (s.parentToken.takeIf { s.mode == AppMode.PARENT }) to s.relayUrl }
             .distinctUntilChanged()
         scope.launch {
             link.collect { (token, url) -> if (token != null && url.isNotBlank()) registerPush() else _pushReady.value = false }
@@ -222,7 +222,7 @@ class CareManager(
         var backoff = 5_000L
         while (scope.isActive) {
             val s = current()
-            if (s.caregiverToken == null || s.relayUrl.isBlank() || s.mode != AppMode.PARENT) return
+            if (s.parentToken == null || s.relayUrl.isBlank() || s.mode != AppMode.PARENT) return
             val ok = runCatching { client().put("/v1/push-token", JSONObject().put("token", token)) }
                 .onFailure { Log.w(TAG, "relay didn't take the FCM token: ${it.message}") }.isSuccess
             if (ok) { _pushReady.value = true; return }
@@ -234,12 +234,12 @@ class CareManager(
     /** A data message from FcmService. Same handling as the stream, so nothing rings twice. */
     fun handlePush(data: Map<String, String>) {
         // The relay keeps the FCM token after a sign-out or a switch to mode Anak.
-        if (current().caregiverToken == null || current().mode != AppMode.PARENT) return
+        if (current().parentToken == null || current().mode != AppMode.PARENT) return
         when (data["kind"]) {
             "event" -> {
                 val e = RemoteEvent(
                     id = data["id"]?.toLongOrNull() ?: return,
-                    childId = data["wearerId"]?.toLongOrNull() ?: 0,
+                    childId = data["childId"]?.toLongOrNull() ?: 0,
                     type = CareEventType.from(data["type"].orEmpty()),
                     batteryPct = data["batteryPct"]?.toIntOrNull(),
                     occurredAt = data["occurredAt"]?.toLongOrNull() ?: System.currentTimeMillis(),
@@ -249,26 +249,26 @@ class CareManager(
                     ackedBy = null,
                     ackedAt = null,
                 )
-                onEvent(e, data["wearerName"].orEmpty(), data["escalated"] == "1", data["escalations"]?.toIntOrNull() ?: 0)
+                onEvent(e, data["childName"].orEmpty(), data["escalated"] == "1", data["escalations"]?.toIntOrNull() ?: 0)
             }
             "ack" -> data["eventId"]?.toLongOrNull()?.let { alerts.cancelCareAlarm(it) }
             // Silence during a trip also arrives as an OFFLINE alarm event, which is what rings.
-            "offline" -> if (data["navigating"] != "1") data["wearerId"]?.toLongOrNull()?.let { alerts.notifyChildOffline(it, data["name"].orEmpty()) }
-            "online" -> data["wearerId"]?.toLongOrNull()?.let { alerts.clearChildOffline(it) }
+            "offline" -> if (data["navigating"] != "1") data["childId"]?.toLongOrNull()?.let { alerts.notifyChildOffline(it, data["name"].orEmpty()) }
+            "online" -> data["childId"]?.toLongOrNull()?.let { alerts.clearChildOffline(it) }
         }
         if (visible.value) scope.launch { runCatching { refresh() } }
     }
 
-    private fun client() = current().let { RelayClient(it.relayUrl, it.caregiverToken) }
+    private fun client() = current().let { RelayClient(it.relayUrl, it.parentToken) }
 
     /** Links to a child's phone with its invite code. A phone already linked keeps its key and follows one more. */
     suspend fun link(relayUrl: String, code: String, name: String): Result<String> = runCatching {
         if (relayUrl.trim() != current().relayUrl) settings.setRelay(relayUrl, RelayDiscovery.check(relayUrl.trim())?.relayId)
-        val token = current().caregiverToken
+        val token = current().parentToken
         val r = RelayClient(relayUrl.trim(), token).post("/v1/link", JSONObject().put("code", code.trim()).put("name", name.trim()))
-        settings.setCaregiver(r.optString("token").takeIf { it.isNotEmpty() && it != "null" }, name.trim())
+        settings.setParent(r.optString("token").takeIf { it.isNotEmpty() && it != "null" }, name.trim())
         runCatching { refresh() }
-        r.getJSONObject("wearer").getString("name")
+        r.getJSONObject("child").getString("name")
     }.onFailure { Log.w(TAG, "link failed", it) }
 
     /** "Cari relay" on the link screen: scans the WiFi and returns the address it found. */
@@ -276,12 +276,12 @@ class CareManager(
 
     suspend fun refresh() {
         val c = client()
-        val a = c.get("/v1/dashboard?limit=1000").getJSONArray("wearers")
+        val a = c.get("/v1/dashboard?limit=1000").getJSONArray("children")
         val since = System.currentTimeMillis() - TRAIL_MS
         _children.value = List(a.length()) { i ->
             val o = a.getJSONObject(i)
             val track = runCatching {
-                val p = c.get("/v1/wearers/${o.getLong("id")}/track?since=$since").getJSONArray("points")
+                val p = c.get("/v1/children/${o.getLong("id")}/track?since=$since").getJSONArray("points")
                 List(p.length()) { TrackPoint.from(p.getJSONObject(it)) }
             }.getOrElse { _children.value.firstOrNull { it.id == o.getLong("id") }?.track.orEmpty() }
             WatchedChild.from(o, track)
@@ -292,7 +292,7 @@ class CareManager(
     suspend fun signOut() {
         _children.value.flatMap { it.events }.filter { it.type.isAlarm && it.ackedAt == null }
             .forEach { alerts.cancelCareAlarm(it.id) }
-        settings.clearCaregiverLink()
+        settings.clearParentLink()
         _children.value = emptyList()
         _error.value = null
     }
@@ -366,8 +366,8 @@ class CareManager(
     private suspend fun dispatch(type: String, d: JSONObject, id: Long?) {
         val now = System.currentTimeMillis()
         when (type) {
-            "event" -> onEvent(RemoteEvent.from(d), d.optString("wearerName"), d.optBoolean("escalated"), d.optInt("escalations"))
-            "status" -> updateChild(d.getLong("wearerId")) {
+            "event" -> onEvent(RemoteEvent.from(d), d.optString("childName"), d.optBoolean("escalated"), d.optInt("escalations"))
+            "status" -> updateChild(d.getLong("childId")) {
                 it.copy(
                     offline = false, lastHeartbeat = d.getLong("at"), navigating = d.optBoolean("navigating"),
                     status = ChildStatus.from(d.getJSONObject("status")),
@@ -375,7 +375,7 @@ class CareManager(
             }
             "location" -> {
                 val p = TrackPoint.from(d)
-                updateChild(d.getLong("wearerId")) {
+                updateChild(d.getLong("childId")) {
                     it.copy(
                         offline = false, lastHeartbeat = now, location = p,
                         track = (it.track + p).dropWhile { old -> old.at < now - TRAIL_MS },
@@ -383,12 +383,12 @@ class CareManager(
                 }
             }
             "offline" -> {
-                updateChild(d.getLong("wearerId")) { it.copy(offline = true) }
-                if (!d.optBoolean("navigating")) alerts.notifyChildOffline(d.getLong("wearerId"), d.optString("name"))
+                updateChild(d.getLong("childId")) { it.copy(offline = true) }
+                if (!d.optBoolean("navigating")) alerts.notifyChildOffline(d.getLong("childId"), d.optString("name"))
             }
             "online" -> {
-                updateChild(d.getLong("wearerId")) { it.copy(offline = false) }
-                alerts.clearChildOffline(d.getLong("wearerId"))
+                updateChild(d.getLong("childId")) { it.copy(offline = false) }
+                alerts.clearChildOffline(d.getLong("childId"))
             }
             "ack" -> {
                 alerts.cancelCareAlarm(d.getLong("eventId"))

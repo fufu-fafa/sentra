@@ -169,7 +169,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // --- Relay, child side ---------------------------------------------------------------
 
     val relayHealth = combine(m.appSettings, m.relayError, m.parentCount, m.pending) { s, err, n, pending ->
-        RelayHealth(s.relayUrl, s.wearerToken != null, err, n, pending)
+        RelayHealth(s.relayUrl, s.childToken != null, err, n, pending)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     fun setRelayUrl(url: String) = viewModelScope.launch {
@@ -286,7 +286,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         /** Prefix of a successful link result. */
         const val LINKED = "Terhubung ke"
 
-        /** The same loop relay/fake-child.mjs walks, around Gedung Sate in Bandung. */
+        /** The same loop server_relay/fake-child.mjs walks, around Gedung Sate in Bandung. */
         val SAMPLE_ROUTE = listOf(
             GeoPoint(-6.90250, 107.61880), GeoPoint(-6.90250, 107.61960), GeoPoint(-6.90320, 107.61960),
             GeoPoint(-6.90320, 107.62040), GeoPoint(-6.90390, 107.62040),

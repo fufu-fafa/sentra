@@ -8,7 +8,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.roundToLong
 
-/** The Riwayat filter, the same periods as the web page (relay/web/index.html). */
+/** The Riwayat filter, the same periods as the web page (server_relay/web/index.html). */
 enum class HistoryMode(val label: String) { DAY("Hari"), WEEK("Minggu"), ALL("Semua") }
 
 /** Events with [from] <= occurredAt < [until]. */

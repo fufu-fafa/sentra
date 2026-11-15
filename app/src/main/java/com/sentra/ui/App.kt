@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Map
@@ -163,8 +162,6 @@ private fun ChildApp(vm: AppViewModel, enableBluetooth: () -> Unit) {
         }
     }
 }
-
-val HistoryIcon: ImageVector get() = Icons.AutoMirrored.Filled.List
 
 /** First launch: is this the child's phone or a parent's? One APK, two modes. */
 @Composable

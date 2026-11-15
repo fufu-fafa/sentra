@@ -164,7 +164,7 @@ private fun ParentsCard(vm: AppViewModel) {
     val message by vm.relayMessage.collectAsState()
     val finding by vm.finding.collectAsState()
     var url by remember(settings.relayUrl) { mutableStateOf(settings.relayUrl) }
-    LaunchedEffect(settings.wearerToken, health?.parents) { vm.refreshParents() }
+    LaunchedEffect(settings.childToken, health?.parents) { vm.refreshParents() }
 
     Card {
         SectionLabel("Orang tua (SENTRA Care)", icon = Icons.Rounded.FamilyRestroom, tint = Tokens.Pink)
@@ -182,7 +182,7 @@ private fun ParentsCard(vm: AppViewModel) {
                 TextButton(onClick = { vm.removeParent(p.id) }) { Text("Hapus", color = Tokens.Wrong) }
             }
         }
-        if (parents.isEmpty() && settings.wearerToken != null) Text("Belum ada orang tua terhubung.")
+        if (parents.isEmpty() && settings.childToken != null) Text("Belum ada orang tua terhubung.")
         Spacer(Modifier.height(8.dp))
         PrimaryButton("Undang orang tua", { vm.newInvite() }, enabled = settings.relayUrl.isNotBlank(), icon = Icons.Rounded.PersonAdd, brush = Tokens.PinkGradient, height = 50.dp)
         invite?.let { inv ->
