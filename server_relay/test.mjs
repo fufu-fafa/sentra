@@ -4,13 +4,14 @@ import { spawn } from 'node:child_process';
 import assert from 'node:assert/strict';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { pushPayload } from './push.mjs';
 
 const PORT = 18788;
 const base = `http://127.0.0.1:${PORT}`;
 // Short timers so the 60-second offline alarm and the re-push can be watched in a few seconds.
 const OFFLINE_NAV_MS = 1500, ESCALATE_AFTER_MS = 1200;
-const server = spawn(process.execPath, ['--disable-warning=ExperimentalWarning', new URL('./server.mjs', import.meta.url).pathname], {
+const server = spawn(process.execPath, ['--disable-warning=ExperimentalWarning', fileURLToPath(new URL('./server.mjs', import.meta.url))], {
   env: {
     ...process.env, PORT: String(PORT), DB_PATH: join(tmpdir(), `sentra-relay-test-${process.pid}.db`),
     OFFLINE_NAV_MS: String(OFFLINE_NAV_MS), OFFLINE_IDLE_MS: '600000', TICK_MS: '200',

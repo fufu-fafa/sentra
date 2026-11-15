@@ -12,6 +12,7 @@ SQLite; the one package is `firebase-admin`, and without it or its key the relay
 | `push.mjs` | FCM push: high priority for KELUAR_RUTE, TERPUTUS, OFFLINE; normal for ARRIVED, NAV_START, TEST |
 | `test.mjs` | End-to-end test against a throwaway database |
 | `fake-child.mjs` | A pretend child phone that walks a route, for trying the relay and SENTRA Care without the app |
+| `install-windows.bat`, `run-windows.bat` | Install and start the relay on Windows (see below) |
 | `sentra-relay.service` | systemd unit for the VPS; replace `YOUR_USER` before installing |
 | `package.json`, `package-lock.json` | Node ≥ 22; `npm start` / `npm test` run the server and the test; the one dependency is `firebase-admin` |
 
@@ -38,6 +39,18 @@ node fake-child.mjs --offroute
 It prints a 6-digit invite code. Open `http://localhost:8787/`, type the code, and watch the
 marker walk around Gedung Sate. `--offroute` raises KELUAR_RUTE, `--drop` raises TERPUTUS and
 `--silent` stops sending so the relay raises OFFLINE after 60 s.
+
+## Run it on Windows
+
+Two scripts in this folder, double-click them in Explorer:
+
+| | |
+|---|---|
+| `install-windows.bat` | Once. Installs Node.js LTS with `winget` if it is missing, checks the version (22.13+ for the built-in SQLite), runs `npm ci --omit=dev`, runs `test.mjs`, and, when started as administrator, offers to open port 8787 in Windows Firewall for private networks |
+| `run-windows.bat` | Starts the relay, prints the addresses phones on the same WiFi can use, Ctrl+C stops it. `run-windows.bat 9000` picks another port; `PORT`, `DB_PATH`, `LAN_ONLY`, `FIREBASE_KEY` are passed through |
+
+The WiFi must be set to **Private** in Windows (a Public network blocks the phones). The `.bat`
+files are kept with CRLF line endings (`.gitattributes`); don't let an editor save them as LF.
 
 By default the relay only answers the local network (requests from public addresses get `403`).
 On the VPS, behind Caddy and HTTPS, set `LAN_ONLY=0`.

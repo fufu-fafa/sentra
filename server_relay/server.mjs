@@ -14,13 +14,14 @@ import http from 'node:http';
 import crypto from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { initPush, push } from './push.mjs';
 
 const PORT = Number(process.env.PORT ?? 8787);
 // Local network only by default: requests from public addresses are refused. LAN_ONLY=0 lifts it
 // once the relay sits behind HTTPS on the VPS.
 const LAN_ONLY = process.env.LAN_ONLY !== '0';
-const DB_PATH = process.env.DB_PATH ?? new URL('./relay.db', import.meta.url).pathname;
+const DB_PATH = process.env.DB_PATH ?? fileURLToPath(new URL('./relay.db', import.meta.url));
 const WEB_PAGE = new URL('./web/index.html', import.meta.url);
 // While a trip is running the phone reports every few seconds, so a minute of silence is an alarm.
 const OFFLINE_NAV_MS = Number(process.env.OFFLINE_NAV_MS ?? 60_000);

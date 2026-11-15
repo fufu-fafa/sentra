@@ -6,8 +6,9 @@
 // chmod 600) and is never logged or committed.
 
 import { readFileSync, existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
-const KEY_PATH = process.env.FIREBASE_KEY ?? new URL('./firebase-service-account.json', import.meta.url).pathname;
+const KEY_PATH = process.env.FIREBASE_KEY ?? fileURLToPath(new URL('./firebase-service-account.json', import.meta.url));
 
 /** Which stream messages are worth waking a phone for; the rest only update an open dashboard. */
 // KELUAR_RUTE, TERPUTUS and OFFLINE are alarms (data.alarm, high priority); the others arrive as
