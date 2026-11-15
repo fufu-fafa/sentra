@@ -41,8 +41,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -52,6 +52,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -62,6 +63,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sentra.ui.theme.AppTheme
@@ -184,27 +186,29 @@ fun PrimaryButton(
         modifier
             .fillMaxWidth()
             .heightIn(min = height)
-            .then(if (enabled) Modifier.shadow(8.dp, shape, ambientColor = Tokens.Accent.copy(alpha = .25f), spotColor = Tokens.Accent.copy(alpha = .35f)) else Modifier)
+            .dropShadow(shape, Shadow(radius = 12.dp, color = Tokens.Accent.copy(alpha = if (enabled) .28f else 0f), offset = DpOffset(0.dp, 4.dp)))
             .clip(shape)
             .background(brush, shape)
-            .alpha(if (enabled) 1f else 0.45f)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = 22.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {
+        // Disabled is shown by dimming the content, not with Modifier.alpha: switching that layer from
+        // 0.45 to 1 made the fill vanish inside a Card (white text on white, seen on a Galaxy S21 FE).
+        val content = if (enabled) Tokens.AccentText else Tokens.AccentText.copy(alpha = 0.55f)
         if (icon != null) {
-            Icon(icon, null, tint = Tokens.AccentText, modifier = Modifier.size(24.dp))
+            Icon(icon, null, tint = content, modifier = Modifier.size(24.dp))
             Spacer(Modifier.width(12.dp))
         }
         Text(
             text,
-            color = Tokens.AccentText,
+            color = content,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             modifier = if (chevron) Modifier.weight(1f) else Modifier,
         )
-        if (chevron) Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = Tokens.AccentText)
+        if (chevron) Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = content)
     }
 }
 
@@ -224,18 +228,19 @@ fun SoftButton(
         modifier
             .heightIn(min = 48.dp)
             .clip(shape)
-            .background(background, shape)
-            .alpha(if (enabled) 1f else 0.45f)
+            .background(if (enabled) background else background.copy(alpha = background.alpha * 0.5f), shape)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {
+        // Dimmed colours rather than Modifier.alpha, for the same reason as PrimaryButton.
+        val content = if (enabled) color else color.copy(alpha = 0.45f)
         if (icon != null) {
-            Icon(icon, null, tint = color, modifier = Modifier.size(20.dp))
+            Icon(icon, null, tint = content, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(8.dp))
         }
-        Text(text, color = color, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center)
+        Text(text, color = content, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center)
     }
 }
 
