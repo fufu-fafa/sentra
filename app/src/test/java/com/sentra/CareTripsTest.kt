@@ -48,4 +48,10 @@ class CareTripsTest {
         assertNull(trips[1].routeName)
         assertEquals(CareEventType.NAV_STOP, trips[1].outcome)
     }
+
+    @Test fun routeNameWithoutPointCount() {
+        // server_relay/fake-child.mjs words it without ", N titik".
+        val trips = careTrips(listOf(ev(CareEventType.NAV_START, 1, "Mulai jalan di rute Keliling Gedung Sate.")))
+        assertEquals("Keliling Gedung Sate", trips[0].routeName)
+    }
 }

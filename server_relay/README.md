@@ -8,7 +8,7 @@ SQLite; the one package is `firebase-admin`, and without it or its key the relay
 | | |
 |---|---|
 | `server.mjs` | The relay: HTTP API, SQLite (`node:sqlite`), SSE stream, offline and re-push timers. `PORT` (default 8787), `DB_PATH` (default `relay.db` here), `LAN_ONLY` (default on); `OFFLINE_NAV_MS`, `OFFLINE_IDLE_MS`, `TICK_MS`, `ESCALATE_AFTER_MS` for testing |
-| `web/index.html` | SENTRA Care in a browser, served at `/`: map (Leaflet 1.9.4 + OpenStreetMap, loaded from unpkg), status, history, alarm. Reads the stream with `fetch` because `EventSource` cannot send the bearer token. Still the older dark design, not the app's new look |
+| `web/index.html` | SENTRA Care in a browser, served at `/`: map (Leaflet 1.9.4 + OpenStreetMap, loaded from unpkg), status, history, alarm. Same look as the app's SENTRA Care (lavender, pink): per child a card with status, map, Riwayat Perjalanan (trips grouped from the events, like the app) and Alarm. Reads the stream with `fetch` because `EventSource` cannot send the bearer token |
 | `push.mjs` | FCM push: high priority for KELUAR_RUTE, TERPUTUS, OFFLINE; normal for ARRIVED, NAV_START, TEST |
 | `test.mjs` | End-to-end test against a throwaway database |
 | `fake-child.mjs` | A pretend child phone that walks a route, for trying the relay and SENTRA Care without the app |

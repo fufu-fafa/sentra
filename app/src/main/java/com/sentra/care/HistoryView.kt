@@ -75,7 +75,7 @@ data class CareTrip(
     val alarms: Int get() = events.count { it.type.isAlarm }
 }
 
-private val ROUTE_IN_START = Regex(" di rute (.+), \\d+ titik\\.$")
+private val ROUTE_IN_START = Regex(" di rute (.+?)(?:, \\d+ titik)?\\.$")
 
 /** Groups the event feed into trips, newest first. Events outside a trip are left out. */
 fun careTrips(events: List<RemoteEvent>): List<CareTrip> {

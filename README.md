@@ -97,6 +97,5 @@ at a time, so disconnect nRF Connect first.
 
 - Never run against the real sleeve. Mode Anak has run on one phone (Samsung SM-G990E) with the
   simulated sleeve and GPS; SENTRA Care has not been checked on a phone since the redesign.
-- The browser SENTRA Care (`server_relay/web`) still has the old dark design.
 - Deployment of the relay to the VPS, and Firebase push.
 - Pairing by QR code (the 6-digit code works).

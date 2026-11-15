@@ -3,104 +3,187 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0d1117">
+<meta name="theme-color" content="#fde7f0">
 <title>SENTRA Care</title>
 <!-- SENTRA Care in a browser, served by the relay. Same API as the app's mode Orang tua: link with
      an invite code, keep the live stream open, show the child on a map, ring on KELUAR_RUTE,
-     TERPUTUS and OFFLINE. A browser can't wake a locked phone, so the page has to stay open. -->
+     TERPUTUS and OFFLINE. A browser can't wake a locked phone, so the page has to stay open.
+     The look follows the app (app/src/main/java/com/sentra/ui/theme/Theme.kt): lavender
+     background, white cards, pink for SENTRA Care. -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="" defer></script>
 <style>
   :root {
-    --bg: #0d1117; --card: #161b22; --text: #e6edf3; --muted: #8d96a0; --border: #30363d;
-    --accent: #4f8cff; --ok: #3fb950; --ok-bg: #12261e; --bad: #f85149; --bad-bg: #2d1416;
+    --bg: #f8f3ff; --bg-top: #fde7f0; --card: #fff; --text: #2b2350; --muted: #6b6489; --border: #e9dffa;
+    --accent: #7653d3; --accent-soft: #efe8ff; --brand: #3b2c8c;
+    --pink: #d63f80; --pink-light: #ee6fa3; --pink-soft: #fde7f0;
+    --blue: #2f74e8; --blue-soft: #e6efff;
+    --ok: #16875a; --ok-bg: #e2f5ec; --bad: #cf2e52; --bad-bg: #fde8ed; --warn: #a35f00; --warn-bg: #fff2da;
+    --shadow: 0 4px 16px rgba(118, 83, 211, .10), 0 1px 3px rgba(118, 83, 211, .08);
+    --pink-grad: linear-gradient(90deg, var(--pink-light), var(--pink));
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; background: var(--bg); color: var(--text); }
-  body { font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding: 0 16px 32px;
-         max-width: 640px; margin: 0 auto; }
-  h1 { font-size: 28px; margin: 24px 0 2px; }
-  .sub { color: var(--muted); margin: 0 0 16px; font-size: 14px; }
-  .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 12px; }
-  .label { text-transform: uppercase; letter-spacing: .06em; font-size: 12px; color: var(--muted); margin: 0 0 6px; }
-  .row { display: flex; align-items: center; gap: 10px; }
+  [hidden] { display: none !important; }
+  html { background: var(--bg); }
+  body { margin: 0 auto; max-width: 680px; padding: 0 16px 40px; color: var(--text);
+         font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         background: linear-gradient(180deg, var(--bg-top) 0, var(--bg) 320px) no-repeat; min-height: 100vh; }
+  html::before { content: ""; position: fixed; inset: 0 0 auto 0; height: 320px; z-index: -1;
+                 background: linear-gradient(180deg, var(--bg-top), var(--bg)); }
+  h1, h2, h3, p { margin: 0; }
+  svg.i { width: 24px; height: 24px; fill: currentColor; flex: none; }
+
+  /* Header: big logo before linking, a compact bar after. */
+  header { display: flex; align-items: center; gap: 12px; padding: 18px 0 14px; }
+  header .mark { width: 48px; height: 48px; }
+  header h1 { font-size: 24px; font-weight: 900; line-height: 1.1;
+              background: linear-gradient(180deg, #e85c98, #b8306d); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  header .grow p { color: var(--muted); font-size: 14px; }
+  .hero { flex-direction: column; text-align: center; padding: 40px 0 24px; gap: 4px; }
+  .hero .mark { width: 128px; height: 128px; margin-bottom: 6px; }
+  .hero h1 { font-size: 46px; }
+  .hero .tag { color: var(--pink); font-weight: 600; display: flex; gap: 6px; align-items: center; justify-content: center; }
+  .hero .tag svg { width: 16px; height: 16px; }
+  .bell { position: relative; width: 48px; height: 48px; border-radius: 50%; border: 0; background: var(--card);
+          color: var(--pink); display: grid; place-items: center; cursor: pointer; box-shadow: var(--shadow); padding: 0; margin: 0; }
+  .bell b { position: absolute; top: 4px; right: 4px; min-width: 18px; height: 18px; border-radius: 9px; background: var(--pink);
+            color: #fff; font-size: 11px; line-height: 18px; padding: 0 5px; }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 16px;
+          margin-bottom: 14px; box-shadow: var(--shadow); }
+  .row { display: flex; align-items: center; gap: 12px; }
   .grow { flex: 1; min-width: 0; }
   .muted { color: var(--muted); }
   .small { font-size: 13px; }
   .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; word-break: break-all; }
-  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; white-space: nowrap;
-          color: var(--muted); background: var(--border); }
+  .section { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 15px; margin-bottom: 8px; }
+  .section svg { width: 18px; height: 18px; color: var(--pink); }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 13px;
+          font-weight: 600; white-space: nowrap; color: var(--muted); background: var(--accent-soft); }
   .pill.ok { color: var(--ok); background: var(--ok-bg); }
   .pill.bad { color: var(--bad); background: var(--bad-bg); }
+  .pill.warn { color: var(--warn); background: var(--warn-bg); }
+  .pill.go { color: var(--accent); background: var(--accent-soft); }
+  .dot { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 15px; }
+  .dot::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+  .dot.ok { color: var(--ok); } .dot.bad { color: var(--bad); } .dot.idle { color: var(--muted); }
+  .bubble { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; flex: none; }
+
   label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
-  input { width: 100%; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border);
-          border-radius: 10px; padding: 12px; }
-  input:focus { outline: 2px solid var(--accent); border-color: transparent; }
-  #code { font-size: 24px; letter-spacing: .3em; text-align: center; font-family: ui-monospace, Menlo, monospace; }
-  button { font: inherit; font-weight: 600; border-radius: 10px; padding: 12px 16px; cursor: pointer; width: 100%;
-           border: 1px solid var(--border); background: transparent; color: var(--text); margin-top: 8px; }
-  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-  button:disabled { opacity: .45; cursor: default; }
-  button.inline { width: auto; padding: 6px 14px; margin-top: 6px; }
+  input { width: 100%; font: inherit; color: var(--text); background: var(--card); border: 1px solid var(--border);
+          border-radius: 14px; padding: 12px 14px; }
+  input:focus { outline: 2px solid var(--pink); border-color: transparent; }
+  #code { font-size: 26px; letter-spacing: .3em; text-align: center; font-family: ui-monospace, Menlo, monospace; }
+  button { font: inherit; font-weight: 700; border-radius: 999px; padding: 13px 18px; cursor: pointer; width: 100%; min-height: 48px;
+           border: 0; background: var(--accent-soft); color: var(--accent); margin-top: 10px; }
+  button.primary { background: var(--pink-grad); color: #fff; box-shadow: 0 6px 16px rgba(214, 63, 128, .28); }
+  button.danger { background: var(--bad-bg); color: var(--bad); }
+  button:disabled { opacity: .45; cursor: default; box-shadow: none; }
+  button.inline { width: auto; min-height: 36px; padding: 6px 16px; margin-top: 8px; background: var(--card); color: var(--bad);
+                  border: 1px solid var(--bad); }
+  button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   .msg { margin-top: 8px; font-size: 14px; }
   .msg.bad { color: var(--bad); } .msg.ok { color: var(--ok); }
-  .child h2 { font-size: 22px; margin: 0; }
-  .map { height: 300px; border-radius: 10px; border: 1px solid var(--border); margin-top: 12px; background: var(--bg); z-index: 0; }
+
+  /* One child */
+  .child .name { font-size: 22px; font-weight: 800; }
+  .avatar { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; flex: none;
+            background: linear-gradient(180deg, var(--pink-soft), #f9cfe1); color: var(--pink); font-size: 24px; font-weight: 900;
+            border: 2px solid #fff; box-shadow: var(--shadow); }
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0 0; }
+  .tile { background: var(--bg); border-radius: 16px; padding: 10px 12px; min-width: 0; }
+  .tile span { display: block; font-size: 12px; color: var(--muted); }
+  .tile b { display: block; font-size: 16px; overflow-wrap: anywhere; }
+  .battery { height: 8px; background: var(--accent-soft); border-radius: 4px; margin-top: 6px; overflow: hidden; }
+  .battery i { display: block; height: 100%; background: #2fb67c; border-radius: 4px; }
+  .activity { margin-top: 12px; }
+  .activity .bubble { background: var(--accent-soft); color: var(--accent); }
+  .map { height: 320px; border-radius: 20px; margin-top: 14px; background: var(--accent-soft); z-index: 0; overflow: hidden; }
   .nomap { display: flex; align-items: center; justify-content: center; text-align: center; padding: 16px; color: var(--muted); }
-  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0; }
-  .stat { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; }
-  .stat b { display: block; font-size: 17px; }
-  .stat span { font-size: 12px; color: var(--muted); }
-  .battery { height: 6px; background: var(--border); border-radius: 3px; margin-top: 6px; overflow: hidden; }
-  .battery i { display: block; height: 100%; background: var(--ok); }
-  .ev { padding: 10px 0; border-top: 1px solid var(--border); }
-  .ev:first-of-type { border-top: 0; }
-  .tabs { display: flex; gap: 6px; margin: 4px 0 8px; }
-  .tabs button { width: auto; flex: 1; margin: 0; padding: 6px 0; font-size: 14px; }
-  .tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .pager { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-  .pager button { width: 44px; margin: 0; padding: 6px 0; }
+
+  /* Riwayat and Alarm */
+  .seg { display: flex; background: var(--bg); border-radius: 999px; padding: 4px; margin: 18px 0 10px; }
+  .seg button { margin: 0; min-height: 40px; padding: 6px 0; background: transparent; color: var(--muted); }
+  .seg button.on { background: var(--card); color: var(--pink); box-shadow: var(--shadow); }
+  .chips { display: flex; gap: 8px; margin-bottom: 6px; }
+  .chips button { margin: 0; min-height: 38px; padding: 6px 0; font-weight: 600; font-size: 14px; background: var(--card);
+                  color: var(--text); border: 1px solid var(--border); }
+  .chips button.on { background: var(--pink-soft); color: var(--pink); border-color: var(--pink-light); }
+  .pager { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+  .pager button { width: 44px; min-height: 40px; margin: 0; padding: 0; background: var(--card); color: var(--text); border: 1px solid var(--border); }
   .pager b { flex: 1; text-align: center; font-size: 15px; }
-  .day { font-size: 13px; font-weight: 600; color: var(--muted); margin: 14px 0 0; }
-  .ev .seen { color: var(--ok); font-size: 13px; }
+  .item { border-radius: 16px; padding: 12px 14px; margin-top: 10px; background: var(--card); border: 1px solid var(--border); }
+  .trip { cursor: pointer; }
+  .trip .route { font-weight: 700; }
+  .trip svg.pin { color: var(--pink); width: 28px; height: 28px; }
+  .trip .more { border-top: 1px solid var(--border); margin-top: 10px; }
+  .alert { display: flex; gap: 12px; border: 1px solid transparent; }
+  .alert svg { width: 30px; height: 30px; }
+  .alert b { display: block; }
+  .alert.warn { background: var(--warn-bg); color: var(--warn); }
+  .alert.ok { background: var(--ok-bg); color: var(--ok); }
+  .alert.go { background: var(--accent-soft); color: var(--accent); }
+  .alert.open { border-color: var(--bad); }
+  .alert .body { color: var(--text); flex: 1; min-width: 0; }
+  .ev { padding: 10px 0 0; }
+  .seen { color: var(--ok); font-size: 13px; }
   .banner { background: var(--bad-bg); color: var(--bad); border-color: var(--bad); }
-  .banner button { border-color: var(--bad); color: var(--bad); }
+  .banner button { background: var(--card); color: var(--bad); border: 1px solid var(--bad); }
+  .foot button { background: var(--card); box-shadow: var(--shadow); }
+  .foot button.danger { background: var(--bad-bg); box-shadow: none; }
 
   /* Full-screen alarm, the browser stand-in for the app's AlarmActivity. */
   #alarm { position: fixed; inset: 0; background: #b3121b; color: #fff; display: none; flex-direction: column;
            justify-content: center; align-items: center; text-align: center; padding: 24px; z-index: 2000;
            animation: flash 1s steps(2) infinite; }
   #alarm.on { display: flex; }
-  #alarm h2 { font-size: 40px; margin: 0; }
+  #alarm svg { width: 72px; height: 72px; fill: #fff; margin-bottom: 8px; }
+  #alarm h2 { font-size: 40px; font-weight: 900; }
   #alarm p { font-size: 20px; margin: 8px 0; max-width: 520px; }
-  #alarm button { background: #fff; color: #b3121b; border: 0; font-size: 22px; padding: 18px; max-width: 420px; margin-top: 24px; }
+  #alarm button { background: #fff; color: #b3121b; font-size: 22px; padding: 18px; max-width: 420px; margin-top: 24px; box-shadow: none; }
   #alarm .more { color: #ffd7d9; font-size: 15px; }
   @keyframes flash { 50% { background: #7a0c12; } }
   @media (prefers-reduced-motion: reduce) { #alarm { animation: none; } }
+  @media (max-width: 420px) { .tiles { grid-template-columns: 1fr 1fr; } .tiles .tile:last-child { grid-column: span 2; } }
 </style>
 </head>
 <body>
-<h1>SENTRA Care</h1>
-<p class="sub" id="who"></p>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></symbol>
+  <symbol id="i-nav" viewBox="0 0 24 24"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></symbol>
+  <symbol id="i-bt" viewBox="0 0 24 24"><path d="M17.71 7.71L12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71-4.3-4.29 4.3-4.29zM13 5.83l1.88 1.88L13 9.59V5.83zm1.88 10.46L13 18.17v-3.76l1.88 1.88z"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></symbol>
+  <symbol id="i-family" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></symbol>
+  <!-- The SENTRA Care mark: a heart outline around a family, with a sparkle, as in the app. -->
+  <symbol id="mark" viewBox="0 0 100 100">
+    <defs><linearGradient id="g-heart" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ee6fa3"/><stop offset="1" stop-color="#d63f80"/></linearGradient></defs>
+    <path d="M50 86 C8 58 8 16 32 16 C42 16 48 22 50 30 C52 22 58 16 68 16 C92 16 92 58 50 86 Z" fill="none" stroke="url(#g-heart)" stroke-width="7" stroke-linejoin="round"/>
+    <g transform="translate(32 30) scale(1.5)" fill="#d63f80"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></g>
+    <path d="M14 13 Q14 20 21 20 Q14 20 14 27 Q14 20 7 20 Q14 20 14 13 Z" fill="#f6c445"/>
+    <path d="M86 9 Q86 14 91 14 Q86 14 86 19 Q86 14 81 14 Q86 14 86 9 Z" fill="#ee6fa3"/>
+  </symbol>
+</svg>
+
+<header id="top">
+  <svg class="mark" aria-hidden="true"><use href="#mark"/></svg>
+  <div class="grow"><h1>SENTRA Care</h1><p id="who"></p><p class="tag" id="tag" hidden>Selalu di sisi mereka <svg class="i"><use href="#i-heart"/></svg></p></div>
+  <button class="bell" id="bell" hidden aria-label="Alarm"><svg class="i"><use href="#i-bell"/></svg><b id="bellCount" hidden></b></button>
+</header>
 
 <div id="sound" class="card banner" hidden>
   <div>Ketuk sekali agar halaman ini bisa berbunyi saat ada alarm. Biarkan halaman tetap terbuka dan layar menyala.</div>
   <button id="soundBtn">Nyalakan suara alarm</button>
 </div>
 
-<div id="status" class="card" hidden>
-  <div class="row">
-    <div class="grow"><p class="label">Relay</p><div class="mono" id="relay"></div></div>
-    <span class="pill" id="live">Mati</span>
-  </div>
-  <div class="msg bad" id="streamErr"></div>
-  <div class="muted small" id="caps"></div>
-</div>
-
 <div id="children"></div>
 
 <div id="link" class="card" hidden>
-  <p class="label">Hubungkan ke HP anak</p>
+  <p class="section"><svg class="i"><use href="#i-family"/></svg>Hubungkan ke HP anak</p>
   <div class="muted">Di HP anak: Setelan → Undang orang tua. Ketik kode 6 angka di sini.</div>
   <form id="linkForm" autocomplete="off">
     <label for="code">Kode undangan</label>
@@ -113,10 +196,22 @@
   <div class="msg" id="linkMsg"></div>
 </div>
 
-<button id="another" hidden>Hubungkan anak lain</button>
-<button id="signout" hidden>Keluar dari browser ini</button>
+<div id="status" class="card" hidden>
+  <div class="row">
+    <div class="grow"><p class="section" style="margin:0"><svg class="i" style="color:var(--muted)"><use href="#i-info"/></svg>Relay</p><div class="mono muted" id="relay"></div></div>
+    <span class="pill" id="live">Mati</span>
+  </div>
+  <div class="msg bad" id="streamErr"></div>
+  <div class="muted small" id="caps"></div>
+</div>
+
+<div class="foot">
+  <button id="another" hidden>Hubungkan anak lain</button>
+  <button id="signout" class="danger" hidden>Keluar dari browser ini</button>
+</div>
 
 <div id="alarm" role="alertdialog" aria-live="assertive">
+  <svg aria-hidden="true"><use href="#i-warn"/></svg>
   <h2 id="alarmTitle">ALARM</h2>
   <p id="alarmWho"></p>
   <p id="alarmMsg"></p>
@@ -351,14 +446,16 @@ async function enableSound() {
   if (ringing.length) { siren.stop(); updateAlarm(); }
 }
 
+
 // --- Map (Leaflet + OpenStreetMap), one per child, kept across re-renders -------------------------
 
-const cards = new Map(); // childId -> { el, info, mapEl, map, marker, circle, trail, routeLine, followed }
+const COLORS = { blue: '#2f74e8', red: '#cf2e52', grey: '#8a84a3', pink: '#d63f80', purple: '#9479e6' };
+const cards = new Map(); // childId -> { el, head, mapEl, info, map, marker, circle, trail, routeLine, routeDots, followed }
 
 function cardFor(w) {
   let c = cards.get(w.id);
   if (c) return c;
-  const el = document.createElement('div');
+  const el = document.createElement('section');
   el.className = 'card child';
   el.innerHTML = '<div data-part="head"></div><div class="map" data-part="map"></div><div data-part="info"></div>';
   c = { el, head: el.querySelector('[data-part=head]'), mapEl: el.querySelector('[data-part=map]'), info: el.querySelector('[data-part=info]') };
@@ -374,11 +471,11 @@ function drawMap(w, c) {
     c.mapEl.classList.remove('nomap'); c.mapEl.textContent = '';
     c.map = L.map(c.mapEl, { zoomControl: true, attributionControl: true });
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(c.map);
-    c.routeLine = L.polyline([], { color: '#4f8cff', weight: 5, opacity: 0.55, dashArray: '8 8' }).addTo(c.map);
+    c.routeLine = L.polyline([], { color: COLORS.blue, weight: 6, opacity: 0.85, lineCap: 'round', lineJoin: 'round' }).addTo(c.map);
     c.routeDots = L.layerGroup().addTo(c.map);
-    c.trail = L.polyline([], { color: '#3fb950', weight: 4, opacity: 0.9 }).addTo(c.map);
-    c.circle = L.circle([0, 0], { radius: 1, color: '#4f8cff', weight: 1, fillOpacity: 0.12 });
-    c.marker = L.circleMarker([0, 0], { radius: 9, color: '#fff', weight: 3, fillColor: '#4f8cff', fillOpacity: 1 });
+    c.trail = L.polyline([], { color: COLORS.purple, weight: 4, opacity: 0.9 }).addTo(c.map);
+    c.circle = L.circle([0, 0], { radius: 1, color: COLORS.blue, weight: 1, fillOpacity: 0.12 });
+    c.marker = L.circleMarker([0, 0], { radius: 10, color: '#fff', weight: 3, fillColor: COLORS.blue, fillOpacity: 1 });
     c.map.on('dragstart', () => { c.followed = false; });
     c.followed = true;
   }
@@ -389,15 +486,20 @@ function drawMap(w, c) {
     c.routeKey = routeKey;
     c.routeLine.setLatLngs(route);
     c.routeDots.clearLayers();
-    route.forEach((p, i) => L.circleMarker(p, { radius: 5, color: '#4f8cff', fillColor: '#0d1117', fillOpacity: 1, weight: 2 })
-      .bindTooltip(i === 0 ? 'Mulai' : i === route.length - 1 ? 'Tujuan' : `Titik ${i + 1}`).addTo(c.routeDots));
+    route.forEach((p, i) => {
+      const end = i === route.length - 1;
+      L.circleMarker(p, end
+        ? { radius: 9, color: '#fff', weight: 3, fillColor: COLORS.pink, fillOpacity: 1 }
+        : { radius: i === 0 ? 7 : 5, color: COLORS.blue, weight: 2, fillColor: '#fff', fillOpacity: 1 })
+        .bindTooltip(i === 0 ? 'Mulai' : end ? 'Tujuan' : `Titik ${i + 1}`).addTo(c.routeDots);
+    });
     if (route.length && !loc) c.map.fitBounds(c.routeLine.getBounds().pad(0.2));
   }
   c.trail.setLatLngs(w.track.map((p) => [p.lat, p.lon]));
   if (loc) {
     const at = [loc.lat, loc.lon];
     c.marker.setLatLng(at).addTo(c.map);
-    c.marker.setStyle({ fillColor: w.offline ? '#8d96a0' : w.status?.navState === 'OFF_ROUTE' ? '#f85149' : '#4f8cff' });
+    c.marker.setStyle({ fillColor: w.offline ? COLORS.grey : w.status?.navState === 'OFF_ROUTE' ? COLORS.red : COLORS.blue });
     if (loc.acc) c.circle.setLatLng(at).setRadius(loc.acc).addTo(c.map); else c.circle.remove();
     if (c.followed) c.map.setView(at, c.map.getZoom() ?? 17, { animate: true });
     if (c.map.getZoom() == null) c.map.setView(at, 17);
@@ -407,6 +509,7 @@ function drawMap(w, c) {
 // --- Rendering ---------------------------------------------------------------------------------
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+const icon = (name, cls = 'i') => `<svg class="${cls}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
 function ago(t) {
   const s = Math.round((Date.now() - t) / 1000);
   if (s < 10) return 'baru saja';
@@ -416,61 +519,144 @@ function ago(t) {
   return `${Math.round(s / 86400)} hari lalu`;
 }
 const when = (t) => new Date(t).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const isToday = (t) => startOfDay(t) === startOfDay(Date.now());
+const stamp = (t) => (isToday(t) ? time(t) : `${dayName(t)}, ${time(t)}`);
+
+/** Trips from the event feed, newest first: NAV_START to ARRIVED or NAV_STOP (same as the app's careTrips). */
+function tripsOf(events) {
+  const out = [];
+  let open = null;
+  for (const e of [...events].sort((a, b) => a.occurredAt - b.occurredAt || a.id - b.id)) {
+    if (e.type === 'NAV_START') {
+      if (open) out.push(open);
+      open = { route: / di rute (.+?)(?:, \d+ titik)?\.$/.exec(e.message || '')?.[1] || null, start: e.occurredAt, end: null, outcome: null, events: [e] };
+    } else if (e.type === 'ARRIVED' || e.type === 'NAV_STOP') {
+      if (open) { open.end = e.occurredAt; open.outcome = e.type; open.events.push(e); out.push(open); open = null; }
+    } else if (open) open.events.push(e);
+  }
+  if (open) out.push(open);
+  return out.reverse();
+}
+
+/** What the Alarm list shows: everything but the routine turn-by-turn events. */
+const ROUTINE = new Set(['NAV_START', 'BELOK_KIRI', 'BELOK_KANAN', 'PUTAR_BALIK']);
+const ALERT_LOOK = {
+  KELUAR_RUTE: ['warn', 'warn'], TERPUTUS: ['go', 'bt'], OFFLINE: ['go', 'info'],
+  ARRIVED: ['ok', 'check'], TERSAMBUNG: ['ok', 'check'], KEMBALI_RUTE: ['ok', 'check'], NAV_STOP: ['warn', 'flag'],
+};
+
+function look(w) {
+  const s = w.status || {};
+  if (w.offline) return ['bad', 'HP offline'];
+  if (w.navigating && s.navState === 'OFF_ROUTE') return ['bad', 'Keluar rute'];
+  if (w.navigating) return ['ok', 'Di perjalanan'];
+  if (w.lastHeartbeat) return ['ok', 'Online'];
+  return ['idle', 'Belum ada kabar'];
+}
+
+function activity(w) {
+  const s = w.status || {};
+  if (w.navigating && s.navState === 'OFF_ROUTE') return 'Keluar rute' + (s.routeName ? ` menuju ${s.routeName}` : '');
+  if (w.navigating) return 'Menuju ' + (s.routeName || 'tujuan');
+  if (s.navState === 'ARRIVED') return 'Sudah sampai' + (s.routeName ? ` di ${s.routeName}` : '');
+  return 'Tidak sedang berjalan';
+}
+
+function eventLine(e, withDate) {
+  const cls = ALARMS.has(e.type) ? 'bad' : GOOD.has(e.type) ? 'ok' : '';
+  const tail = e.ackedAt
+    ? `<div class="seen">Dilihat oleh ${esc(e.ackedBy)} ${ago(e.ackedAt)}</div>`
+    : ALARMS.has(e.type) ? `<button class="inline" data-ack="${e.id}">Tandai dilihat</button>` : '';
+  return `<div class="ev"><div class="row"><span class="pill ${cls}">${esc(LABELS[e.type] || e.type)}</span>
+    <span class="muted small">${withDate ? when(e.occurredAt) : time(e.occurredAt)}</span></div>
+    ${e.message ? `<div>${esc(e.message)}</div>` : ''}${tail}</div>`;
+}
+
+function tripItem(w, t, ongoing) {
+  const key = `${w.id}:${t.start}`;
+  const expanded = openTrips.has(key);
+  const mins = t.end ? Math.max(1, Math.round((t.end - t.start) / 60_000)) : null;
+  const alarms = t.events.filter((e) => ALARMS.has(e.type)).length;
+  const [cls, text] = ongoing ? ['go', 'Berjalan'] : t.outcome === 'ARRIVED' ? ['ok', 'Sampai'] : t.outcome === 'NAV_STOP' ? ['warn', 'Dihentikan'] : ['', 'Tanpa akhir'];
+  return `<div class="item trip" data-trip="${key}" role="button" tabindex="0" aria-expanded="${expanded}">
+    <div class="row">${icon('pin', 'i pin')}
+      <div class="grow"><div class="route">${esc(t.route || 'Perjalanan')}</div>
+        <div class="muted small">${stamp(t.start)}${t.end ? ` – ${time(t.end)}` : ''}${mins ? ` (${mins} mnt)` : ''}</div>
+        ${alarms ? `<div class="small" style="color:var(--bad);font-weight:600">${alarms} alarm</div>` : ''}</div>
+      <span class="pill ${cls}">${text}</span></div>
+    ${expanded ? `<div class="more">${t.events.map((e) => eventLine(e, false)).join('')}</div>` : ''}</div>`;
+}
+
+function alertItem(e) {
+  const [cls, ic] = ALERT_LOOK[e.type] || ['go', 'info'];
+  const open = ALARMS.has(e.type) && !e.ackedAt;
+  return `<div class="item alert ${cls}${open ? ' open' : ''}">${icon(ic)}
+    <div class="body"><b>${esc(LABELS[e.type] || e.type)}</b>
+      <div class="muted small">${stamp(e.occurredAt)}</div>
+      ${e.message ? `<div style="margin-top:4px">${esc(e.message)}</div>` : ''}
+      ${e.ackedAt ? `<div class="seen">Dilihat oleh ${esc(e.ackedBy)} ${ago(e.ackedAt)}</div>`
+        : open ? `<button class="inline" data-ack="${e.id}">Tandai dilihat</button>` : ''}</div></div>`;
+}
 
 function renderChild(w) {
   const c = cardFor(w);
   const s = w.status || {};
-  c.head.innerHTML = `<div class="row"><h2 class="grow">${esc(w.name)}</h2>
-    ${w.offline ? '<span class="pill bad">HP offline</span>' : w.lastHeartbeat ? '<span class="pill ok">Online</span>' : '<span class="pill">Belum ada kabar</span>'}</div>`;
+  const [lookCls, lookText] = look(w);
+  c.head.innerHTML = `<div class="row"><div class="avatar" aria-hidden="true">${esc((w.name || '?').trim()[0]?.toUpperCase() || '?')}</div>
+    <div class="grow"><h2 class="name">${esc(w.name)}</h2><span class="dot ${lookCls}" role="status">${lookText}</span>
+      <div class="muted small">${w.lastHeartbeat ? `Kabar terakhir ${ago(w.lastHeartbeat)}` : 'Belum ada kabar'}${w.offline ? ' · peta menunjukkan lokasi terakhir' : ''}</div></div></div>`;
   drawMap(w, c);
 
-  const sleeve = s.sleeveConnected === true ? 'Tersambung' : s.sleeveConnected === false ? 'Terputus' : '—';
+  const sleeve = s.sleeveConnected === true ? '<span class="dot ok">Tersambung</span>' : s.sleeveConnected === false ? '<span class="dot bad">Terputus</span>' : '—';
   const nav = w.navigating || s.navState === 'ARRIVED' ? (NAV_STATES[s.navState] || '—') : 'Tidak jalan';
   const battery = s.batteryPct;
   const next = w.navigating && s.nextPoint
-    ? `Titik berikutnya ${s.nextPoint} dari ${s.totalPoints ?? '?'}${s.distanceM != null ? ` · ${Math.round(s.distanceM)} m lagi` : ''}` : '';
+    ? `Titik ${s.nextPoint} dari ${s.totalPoints ?? '?'}${s.distanceM != null ? ` · ${Math.round(s.distanceM)} m lagi` : ''}` : '';
+  const obstacle = w.navigating && s.obstacleCm != null ? (s.obstacleCm >= 999 ? 'Rintangan: kosong' : `Rintangan: ${s.obstacleCm} cm`) : '';
+
   const v = viewOf(w.id);
   const [from, to, title] = range(v);
-  const shown = w.events.filter((e) => e.occurredAt >= from && e.occurredAt < to);
-  let lastDay = '';
-  const events = shown.map((e) => {
-    const day = new Date(e.occurredAt).toDateString();
-    const heading = v.mode !== 'day' && day !== lastDay ? `<p class="day">${dayName(e.occurredAt)}</p>` : '';
-    lastDay = day;
-    const cls = ALARMS.has(e.type) ? 'bad' : GOOD.has(e.type) ? 'ok' : '';
-    const tail = e.ackedAt
-      ? `<div class="seen">Dilihat oleh ${esc(e.ackedBy)} ${ago(e.ackedAt)}</div>`
-      : ALARMS.has(e.type) ? `<button class="inline" data-ack="${e.id}">Sudah saya lihat</button>` : '';
-    return `${heading}<div class="ev"><div class="row"><span class="pill ${cls}">${esc(LABELS[e.type] || e.type)}</span>
-      <span class="muted small">${v.mode === 'day' ? time(e.occurredAt) : when(e.occurredAt)}</span></div>
-      ${e.message ? `<div>${esc(e.message)}</div>` : ''}${tail}</div>`;
-  }).join('');
-  const alarmCount = shown.filter((e) => ALARMS.has(e.type)).length;
+  let list;
+  if (v.tab === 'alerts') {
+    const shown = w.events.filter((e) => !ROUTINE.has(e.type) && e.occurredAt >= from && e.occurredAt < to);
+    list = shown.map(alertItem).join('') || `<div class="muted" style="padding:8px">${w.events.length ? 'Tidak ada alarm atau kabar di periode ini.' : 'Belum ada alarm atau kabar.'}</div>`;
+  } else {
+    const all = tripsOf(w.events);
+    const shown = all.filter((t) => t.start >= from && t.start < to);
+    list = shown.map((t) => tripItem(w, t, t === all[0] && !t.end && w.navigating)).join('')
+      || `<div class="muted" style="padding:8px">${all.length ? 'Tidak ada perjalanan di periode ini.' : 'Belum ada perjalanan.'}</div>`;
+  }
+  const unseen = w.events.filter((e) => ALARMS.has(e.type) && !e.ackedAt).length;
+  const chip = (m, label) => `<button class="${v.mode === m ? 'on' : ''}" data-view="${w.id}:${m}" aria-pressed="${v.mode === m}">${v.mode === m && v.offset ? title : label}</button>`;
+
   c.info.innerHTML = `
-    <div class="stats">
-      <div class="stat"><span>Sleeve</span><b style="${s.sleeveConnected === false ? 'color:var(--bad)' : ''}">${sleeve}</b></div>
-      <div class="stat"><span>Perjalanan</span><b style="${s.navState === 'OFF_ROUTE' && w.navigating ? 'color:var(--bad)' : ''}">${esc(nav)}</b></div>
-      <div class="stat"><span>Baterai HP</span><b>${battery != null ? battery + '%' : '—'}</b>
+    <div class="tiles">
+      <div class="tile"><span>Sleeve</span><b>${sleeve}</b></div>
+      <div class="tile"><span>Perjalanan</span><b style="${s.navState === 'OFF_ROUTE' && w.navigating ? 'color:var(--bad)' : ''}">${esc(nav)}</b></div>
+      <div class="tile"><span>Baterai HP anak</span><b>${battery != null ? battery + '%' : '—'}</b>
         ${battery != null ? `<div class="battery"><i style="width:${Math.max(0, Math.min(100, battery))}%;${battery <= 20 ? 'background:var(--bad)' : ''}"></i></div>` : ''}</div>
     </div>
-    ${w.navigating && s.routeName ? `<div>Rute: <b>${esc(s.routeName)}</b></div>` : ''}
-    ${next ? `<div>${esc(next)}</div>` : ''}
-    ${s.simulated ? '<div class="muted small">Mode uji: sleeve atau GPS simulasi.</div>' : ''}
-    <div class="muted small">${w.lastHeartbeat ? `Kabar terakhir ${ago(w.lastHeartbeat)}` : 'Belum ada kabar'}${w.location ? ` · lokasi ${ago(w.location.at)}${w.location.acc ? `, ±${Math.round(w.location.acc)} m` : ''}` : ''}</div>
-    <p class="label" style="margin-top:14px">Riwayat</p>
-    <div class="tabs">${['day', 'week', 'all'].map((m) =>
-      `<button class="${v.mode === m ? 'on' : ''}" data-view="${w.id}:${m}">${{ day: 'Hari', week: 'Minggu', all: 'Semua' }[m]}</button>`).join('')}</div>
-    ${v.mode !== 'all' ? `<div class="pager"><button data-step="${w.id}:-1" aria-label="Sebelumnya">‹</button>
-      <b>${title}</b><button data-step="${w.id}:1" aria-label="Berikutnya" ${v.offset >= 0 ? 'disabled' : ''}>›</button></div>` : ''}
-    <div class="muted small">${shown.length ? `${shown.length} kejadian` : ''}${alarmCount ? `, ${alarmCount} alarm` : ''}</div>
-    ${events || `<div class="muted">${w.events.length ? 'Tidak ada kejadian di periode ini.' : 'Belum ada kejadian.'}</div>`}`;
+    <div class="row activity"><div class="bubble">${icon('nav')}</div>
+      <div class="grow"><b>Aktivitas sekarang</b><div>${esc(activity(w))}</div>
+        ${next ? `<div class="muted small">${esc(next)}</div>` : ''}${obstacle ? `<div class="muted small">${obstacle}</div>` : ''}
+        ${s.simulated ? '<div class="small" style="color:var(--warn)">Mode uji: sleeve atau GPS simulasi.</div>' : ''}
+        ${w.location ? `<div class="muted small">Lokasi ${ago(w.location.at)}${w.location.acc ? `, ±${Math.round(w.location.acc)} m` : ''}</div>` : ''}</div></div>
+    <div class="seg" role="tablist">
+      <button role="tab" class="${v.tab !== 'alerts' ? 'on' : ''}" aria-selected="${v.tab !== 'alerts'}" data-tab="${w.id}:trips">Riwayat Perjalanan</button>
+      <button role="tab" class="${v.tab === 'alerts' ? 'on' : ''}" aria-selected="${v.tab === 'alerts'}" data-tab="${w.id}:alerts">Alarm${unseen ? ` (${unseen})` : ''}</button>
+    </div>
+    <div class="chips">${chip('all', 'Semua')}${chip('day', 'Hari ini')}${chip('week', 'Minggu ini')}</div>
+    ${v.mode !== 'all' ? `<div class="pager"><button data-step="${w.id}:-1" aria-label="Periode sebelumnya">‹</button>
+      <b>${title}</b><button data-step="${w.id}:1" aria-label="Periode berikutnya" ${v.offset >= 0 ? 'disabled' : ''}>›</button></div>` : ''}
+    <div>${list}</div>`;
   return c.el;
 }
 
-// History filter per child: one day or one week at a time (offset 0 = today / this week), or all.
+// Riwayat per child: trips or alarms, for all time or one day / week at a time (offset 0 = today / this week).
 const views = (() => { try { return JSON.parse(store.get('care.views')) || {}; } catch { return {}; } })();
-const viewOf = (id) => (views[id] ??= { mode: 'day', offset: 0 });
+const viewOf = (id) => (views[id] ??= { mode: 'all', offset: 0, tab: 'trips' });
 const saveViews = () => store.set('care.views', JSON.stringify(views));
+const openTrips = new Set();
 const time = (t) => new Date(t).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 function startOfDay(t, plusDays = 0) { const d = new Date(t); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + plusDays); return d.getTime(); }
 function dayName(t) {
@@ -492,12 +678,17 @@ function range(v) {
 let linking = false;
 function render() {
   const linked = !!token;
-  $('who').textContent = linked && me ? `Masuk sebagai ${me}` : 'Lokasi dan alarm anak di perangkat ini selama halaman terbuka.';
+  $('top').classList.toggle('hero', !linked);
+  $('tag').hidden = linked;
+  $('who').textContent = linked ? (me ? `Masuk sebagai ${me}` : '') : 'Lokasi dan alarm anak di perangkat ini selama halaman terbuka.';
   $('link').hidden = linked && !linking;
   $('cancelLink').hidden = !linked;
-  $('status').hidden = $('another').hidden = $('signout').hidden = !linked;
+  $('status').hidden = $('another').hidden = $('signout').hidden = $('bell').hidden = !linked;
   $('sound').hidden = !linked || siren.ready;
   $('relay').textContent = location.host;
+  const unseen = [...children.values()].reduce((n, w) => n + w.events.filter((e) => ALARMS.has(e.type) && !e.ackedAt).length, 0);
+  $('bellCount').hidden = !unseen; $('bellCount').textContent = unseen;
+  $('bell').setAttribute('aria-label', unseen ? `${unseen} alarm belum dilihat` : 'Alarm');
   const caps = [];
   if (!('Notification' in window) || !window.isSecureContext) caps.push('notifikasi tidak tersedia lewat http biasa');
   else if (Notification.permission !== 'granted') caps.push('notifikasi mati');
@@ -562,11 +753,26 @@ $('children').addEventListener('click', (e) => {
   const b = e.target.closest('[data-ack]');
   if (b) return acknowledge(Number(b.dataset.ack), b);
   const t = e.target.closest('[data-view]'), s = e.target.closest('[data-step]');
-  if (t) { const [id, mode] = t.dataset.view.split(':'); views[id] = { mode, offset: 0 }; }
+  const tab = e.target.closest('[data-tab]'), trip = e.target.closest('[data-trip]');
+  if (t) { const [id, mode] = t.dataset.view.split(':'); Object.assign(viewOf(id), { mode, offset: 0 }); }
   else if (s) { const [id, step] = s.dataset.step.split(':'); const v = viewOf(id); v.offset = Math.min(0, v.offset + Number(step)); }
+  else if (tab) { const [id, which] = tab.dataset.tab.split(':'); viewOf(id).tab = which; }
+  else if (trip) { const k = trip.dataset.trip; openTrips.has(k) ? openTrips.delete(k) : openTrips.add(k); render(); return; }
   else return;
   saveViews();
   render();
+});
+$('children').addEventListener('keydown', (e) => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-trip]')) { e.preventDefault(); e.target.click(); }
+});
+// The bell opens the Alarm list of every child with an unseen alarm.
+$('bell').addEventListener('click', () => {
+  let first = null;
+  for (const w of children.values()) {
+    if (w.events.some((e) => ALARMS.has(e.type) && !e.ackedAt)) { viewOf(w.id).tab = 'alerts'; first ??= w.id; }
+  }
+  saveViews(); render();
+  (cards.get(first) || cards.values().next().value)?.el.scrollIntoView({ behavior: 'smooth' });
 });
 // Any tap on the page also unlocks audio, so a reload followed by a tap is enough.
 document.addEventListener('pointerdown', () => { if (token && !siren.ready) enableSound(); }, { once: false });
