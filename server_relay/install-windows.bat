@@ -1,7 +1,7 @@
 @echo off
 rem SENTRA relay - one-time install on Windows 10/11.
 rem Double-click this file (or run it from a Command Prompt). It:
-rem   1. installs Node.js LTS with winget if Node is missing,
+rem   1. installs Node.js LTS if Node is missing (winget, or the installer from nodejs.org),
 rem   2. checks that Node is new enough for the built-in SQLite (22.13 or later),
 rem   3. installs the one dependency (firebase-admin, only needed for push),
 rem   4. runs the relay's end-to-end test,
@@ -21,25 +21,34 @@ echo.
 rem --- 1. Node.js ---------------------------------------------------------------------------------
 where node >nul 2>&1
 if not errorlevel 1 goto :have_node
+rem Installed earlier, but this window was opened before PATH was updated.
+if exist "%ProgramFiles%\nodejs\node.exe" goto :add_node_path
 
-echo Node.js was not found. Installing Node.js LTS with winget...
+echo Node.js was not found. Installing Node.js LTS...
 where winget >nul 2>&1
-if errorlevel 1 (
-  echo.
-  echo winget is not available on this PC. Install Node.js LTS by hand from https://nodejs.org
-  echo then run this script again.
-  goto :fail
-)
-winget install -e --id OpenJS.NodeJS.LTS --accept-source-agreements --accept-package-agreements
-rem This window still has the old PATH; add the default install folder for the rest of the script.
+if errorlevel 1 goto :node_msi
+rem --source winget: skip the Microsoft Store source, which fails on some PCs (certificate errors)
+rem and makes winget refuse to choose between the two sources.
+winget install -e --id OpenJS.NodeJS.LTS --source winget --accept-source-agreements --accept-package-agreements
+if exist "%ProgramFiles%\nodejs\node.exe" goto :add_node_path
+echo.
+echo winget could not install Node.js. Downloading the installer from nodejs.org instead...
+
+:node_msi
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; $a=if($env:PROCESSOR_ARCHITECTURE -eq 'ARM64'){'arm64'}else{'x64'}; $v=(Invoke-RestMethod -UseBasicParsing 'https://nodejs.org/dist/index.json' | Where-Object { $_.lts } | Select-Object -First 1).version; $f=Join-Path $env:TEMP ('node-'+$v+'-'+$a+'.msi'); Write-Host ('Downloading Node.js '+$v+' ('+$a+')...'); Invoke-WebRequest -UseBasicParsing ('https://nodejs.org/dist/'+$v+'/node-'+$v+'-'+$a+'.msi') -OutFile $f; Write-Host 'Running the Node.js installer...'; $p=Start-Process msiexec.exe -ArgumentList ('/i '+[char]34+$f+[char]34+' /passive /norestart') -Wait -PassThru; if($p.ExitCode -in 0,3010){exit 0}else{Write-Host ('Installer exit code '+$p.ExitCode); exit 1}"
+if errorlevel 1 goto :node_failed
+if exist "%ProgramFiles%\nodejs\node.exe" goto :add_node_path
+
+:node_failed
+echo.
+echo Node.js could not be installed automatically. Install Node.js LTS by hand from
+echo https://nodejs.org (the Windows Installer .msi), then run this script again.
+echo If the errors above mention certificates, check that this PC's date and time are correct.
+goto :fail
+
+:add_node_path
+rem This window still has the old PATH; add the install folder for the rest of the script.
 set "PATH=%ProgramFiles%\nodejs;%PATH%"
-where node >nul 2>&1
-if errorlevel 1 (
-  echo.
-  echo Node.js was installed but this window cannot see it yet.
-  echo Close this window and run install-windows.bat again.
-  goto :fail
-)
 
 :have_node
 for /f "delims=" %%v in ('node --version') do set "NODE_VERSION=%%v"
@@ -50,7 +59,7 @@ node -e "require('node:sqlite')" >nul 2>&1
 if errorlevel 1 (
   echo.
   echo Node.js %NODE_VERSION% is too old: the relay needs Node 22.13 or later for its built-in SQLite.
-  echo Update it with:   winget upgrade -e --id OpenJS.NodeJS.LTS
+  echo Update it with:   winget upgrade -e --id OpenJS.NodeJS.LTS --source winget
   echo or download the LTS from https://nodejs.org, then run this script again.
   goto :fail
 )
