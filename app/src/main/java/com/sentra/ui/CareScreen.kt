@@ -301,7 +301,7 @@ private fun Dashboard(
                         open.take(3).forEach { e -> EventLine(e, showDate = true, now, vm::acknowledge) }
                     }
                 }
-                PrimaryButton("Lihat Peta Live", openMap, icon = Icons.Rounded.LocationOn, brush = Tokens.PinkGradient)
+                PrimaryButton("Lihat Peta Live", openMap, icon = Icons.Rounded.LocationOn, color = Tokens.Pink)
             }
             Card(padding = 12.dp) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -688,7 +688,7 @@ private fun LinkCard(vm: AppViewModel, relayUrl: String, savedName: String, onCa
         PrimaryButton(
             "Hubungkan", { vm.link(url, code, name) },
             enabled = code.length == 6 && name.isNotBlank() && url.isNotBlank(),
-            brush = Tokens.PinkGradient,
+            color = Tokens.Pink,
         )
         if (onCancel != null) {
             Spacer(Modifier.height(8.dp))

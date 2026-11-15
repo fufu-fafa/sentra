@@ -45,7 +45,6 @@ object Tokens {
     val Sun = Color(0xFFF6C445)
 
     val AccentGradient = Brush.horizontalGradient(listOf(AccentLight, Accent))
-    val PinkGradient = Brush.horizontalGradient(listOf(PinkLight, Pink))
     val BrandText = Brush.verticalGradient(listOf(Color(0xFF6A52D6), Brand))
     val CareText = Brush.verticalGradient(listOf(Color(0xFFE85C98), Color(0xFFB8306D)))
 }

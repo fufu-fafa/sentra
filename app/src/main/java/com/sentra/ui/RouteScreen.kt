@@ -316,7 +316,7 @@ fun RecordRoute(vm: AppViewModel, onClose: () -> Unit) {
                 draft.isEmpty() -> PrimaryButton("Titik mulai", vm::recordStart, icon = Icons.Rounded.LocationOn)
                 !done -> Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     PrimaryButton("Tandai belok", vm::recordTurn, Modifier.weight(1f), icon = Icons.Rounded.Route)
-                    PrimaryButton("Tujuan", vm::recordEnd, Modifier.weight(1f), icon = Icons.Rounded.Flag, brush = Tokens.PinkGradient)
+                    PrimaryButton("Tujuan", vm::recordEnd, Modifier.weight(1f), icon = Icons.Rounded.Flag, color = Tokens.Pink)
                 }
             }
             message?.let {

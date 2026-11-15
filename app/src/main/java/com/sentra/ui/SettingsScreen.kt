@@ -184,7 +184,7 @@ private fun ParentsCard(vm: AppViewModel) {
         }
         if (parents.isEmpty() && settings.childToken != null) Text("Belum ada orang tua terhubung.")
         Spacer(Modifier.height(8.dp))
-        PrimaryButton("Undang orang tua", { vm.newInvite() }, enabled = settings.relayUrl.isNotBlank(), icon = Icons.Rounded.PersonAdd, brush = Tokens.PinkGradient, height = 50.dp)
+        PrimaryButton("Undang orang tua", { vm.newInvite() }, enabled = settings.relayUrl.isNotBlank(), icon = Icons.Rounded.PersonAdd, color = Tokens.Pink, height = 50.dp)
         invite?.let { inv ->
             if (inv.expiresAt > System.currentTimeMillis()) {
                 Spacer(Modifier.height(8.dp))

@@ -178,7 +178,7 @@ fun PrimaryButton(
     icon: ImageVector? = null,
     enabled: Boolean = true,
     chevron: Boolean = false,
-    brush: Brush = Tokens.AccentGradient,
+    color: Color = Tokens.Accent,
     height: Dp = 56.dp,
 ) {
     val shape = RoundedCornerShape(50)
@@ -186,9 +186,9 @@ fun PrimaryButton(
         modifier
             .fillMaxWidth()
             .heightIn(min = height)
-            .dropShadow(shape, Shadow(radius = 12.dp, color = Tokens.Accent.copy(alpha = if (enabled) .28f else 0f), offset = DpOffset(0.dp, 4.dp)))
+            .dropShadow(shape, Shadow(radius = 12.dp, color = color.copy(alpha = if (enabled) .28f else 0f), offset = DpOffset(0.dp, 4.dp)))
             .clip(shape)
-            .background(brush, shape)
+            .background(color, shape)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = 22.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
