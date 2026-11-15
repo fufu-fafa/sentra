@@ -1,5 +1,13 @@
 package com.sentra.ui
 
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Route
+import androidx.compose.material.icons.rounded.Science
+import androidx.compose.material.icons.rounded.Sensors
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.rounded.Vibration
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -35,7 +43,7 @@ import com.sentra.ui.theme.Tokens
  * the intensity switch.
  */
 @Composable
-fun DemoScreen(vm: AppViewModel) {
+fun DemoScreen(vm: AppViewModel, onBack: () -> Unit) {
     val settings by vm.settings.collectAsState()
     val link by vm.link.collectAsState()
     val nav by vm.nav.collectAsState()
@@ -49,8 +57,8 @@ fun DemoScreen(vm: AppViewModel) {
     val free = connected && !nav.active
     val manual = free && step == null
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        ScreenTitle("Demo")
+    Column(Modifier.fillMaxSize().navigationBarsPadding().verticalScroll(rememberScrollState())) {
+        TopBar("Mode Demo", onBack)
         Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             when {
                 !connected -> Text("Sambungkan sleeve di Beranda dulu.", color = Tokens.Warn)
@@ -61,7 +69,7 @@ fun DemoScreen(vm: AppViewModel) {
                 Text("Dekatkan tangan ke sensor.", color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall)
             }
             Card {
-                SectionLabel("Perintah")
+                SectionLabel("Perintah", icon = Icons.Rounded.Vibration)
                 CommandRow(vm, manual, SleeveCommand.LEFT to "Kiri", SleeveCommand.RIGHT to "Kanan")
                 CommandRow(vm, manual, SleeveCommand.FORWARD to "Lurus", SleeveCommand.STOP to "Stop")
                 CommandRow(vm, manual, SleeveCommand.ARRIVED to "Tiba", SleeveCommand.TEST to "Tes")
@@ -70,7 +78,7 @@ fun DemoScreen(vm: AppViewModel) {
                 }
             }
             Card {
-                SectionLabel("Getaran")
+                SectionLabel("Getaran", icon = Icons.Rounded.Tune)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf(Intensity.LOW to "Lemah", Intensity.HIGH to "Kuat").forEach { (level, text) ->
                         FilterChip(
@@ -87,12 +95,12 @@ fun DemoScreen(vm: AppViewModel) {
                 }
             }
             Card {
-                SectionLabel("Simulasi rute")
+                SectionLabel("Simulasi rute", icon = Icons.Rounded.Route)
                 Text("Lurus, kiri, lurus, kanan, lurus, tiba; tiap 4 detik.", color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.height(8.dp))
                 val current = step
                 if (current == null) {
-                    Button(onClick = vm::startDemo, enabled = free, modifier = Modifier.fillMaxWidth()) { Text("Mulai simulasi") }
+                    PrimaryButton("Mulai simulasi", vm::startDemo, enabled = free, icon = Icons.Rounded.PlayArrow)
                 } else {
                     Text(
                         "Langkah ${current + 1} dari ${ChildManager.DEMO_SEQUENCE.size}: ${ChildManager.DEMO_SEQUENCE[current].label}",
@@ -102,7 +110,7 @@ fun DemoScreen(vm: AppViewModel) {
                 }
             }
             Card {
-                SectionLabel("Balasan sleeve")
+                SectionLabel("Balasan sleeve", icon = Icons.Rounded.Sensors)
                 Text(
                     ack?.let { "ACK:${it.command}" + (it.roundTripMs?.let { ms -> " · $ms ms" } ?: "") } ?: "Belum ada.",
                     fontFamily = Mono,
@@ -111,7 +119,7 @@ fun DemoScreen(vm: AppViewModel) {
             }
             if (settings.simulatedSleeve) {
                 Card {
-                    SectionLabel("Sleeve simulasi")
+                    SectionLabel("Sleeve simulasi", icon = Icons.Rounded.Science)
                     Text("Motor: " + (pattern?.let { patternText(it) } ?: "diam"))
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

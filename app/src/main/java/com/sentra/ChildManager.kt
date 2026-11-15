@@ -24,6 +24,7 @@ import com.sentra.data.LocationEntity
 import com.sentra.data.RouteEntity
 import com.sentra.data.SettingsRepository
 import com.sentra.data.TestLogger
+import com.sentra.data.TripEntity
 import com.sentra.data.Uploader
 import com.sentra.loc.Fix
 import com.sentra.loc.gpsFixes
@@ -104,6 +105,7 @@ class ChildManager(
 
     val routes = db.routes().all()
     val events = db.outbox().recentEvents()
+    val trips = db.trips().recent()
 
     // --- Sleeve state ------------------------------------------------------------------------
 
@@ -126,6 +128,8 @@ class ChildManager(
     // --- Navigation state --------------------------------------------------------------------
 
     private var engine: NavEngine? = null
+    /** When the running trip started; 0 when none is running. */
+    @Volatile private var tripStartedAt = 0L
     private val navLock = Mutex()
     private val _nav = MutableStateFlow(NavSnapshot())
     val nav: StateFlow<NavSnapshot> = _nav.asStateFlow()
@@ -350,6 +354,7 @@ class ChildManager(
         navLock.withLock {
             val e = NavEngine(points, route.name)
             engine = e
+            tripStartedAt = System.currentTimeMillis()
             _navRoute.value = route
             perform(e.start())
             _nav.value = e.snapshot
@@ -376,7 +381,20 @@ class ChildManager(
         endTrip()
     }
 
-    private fun endTrip() {
+    private suspend fun endTrip() {
+        val started = tripStartedAt
+        val route = _navRoute.value
+        tripStartedAt = 0L
+        if (started > 0 && route != null) {
+            val points = route.geoPoints()
+            db.trips().insert(
+                TripEntity(
+                    routeId = route.id, routeName = route.name, startedAt = started, endedAt = System.currentTimeMillis(),
+                    arrived = _nav.value.state == NavState.ARRIVED,
+                    lengthM = points.zipWithNext { a, b -> com.sentra.nav.Geo.distanceM(a, b) }.sum(),
+                )
+            )
+        }
         tickJob?.cancel()
         tickJob = null
         simDetour = false
@@ -522,6 +540,8 @@ class ChildManager(
 
     fun speak(text: String) = speaker.speak(text)
 
+    fun speakInfo() = speaker.speak(engine?.info() ?: "Navigasi belum dimulai")
+
     // --- Relay -------------------------------------------------------------------------------
 
     /**
@@ -628,7 +648,10 @@ class ChildManager(
     suspend fun clearHistory() {
         db.outbox().clearEvents()
         db.outbox().clearLocations()
+        db.trips().clear()
     }
+
+    suspend fun clearTrips() = db.trips().clear()
 
     companion object {
         private const val TAG = "ChildManager"

@@ -57,8 +57,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val routes = m.routes.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val events = m.events.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    val trips = m.trips.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     fun selectRoute(id: Long?) = viewModelScope.launch { m.settings.setSelectedRoute(id) }
-    fun startNavigation(routeId: Long) { m.startNavigation(routeId) }
+    fun startNavigation(routeId: Long) {
+        viewModelScope.launch { m.settings.setSelectedRoute(routeId) }
+        m.startNavigation(routeId)
+    }
+    fun clearTrips() = viewModelScope.launch { m.clearTrips() }
+    /** The speaker button: reads out where the child is, like a short press on the sleeve. */
+    fun speakInfo() = m.speakInfo()
     fun stopNavigation() { m.stopNavigation() }
     fun deleteRoute(id: Long) = viewModelScope.launch { m.deleteRoute(id) }
 

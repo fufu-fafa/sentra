@@ -38,10 +38,12 @@ data class MapContent(
     val route: List<LatLon> = emptyList(),
 ) {
     companion object {
-        const val BLUE = 0xFF4F8CFF.toInt()
-        const val GREEN = 0xFF3FB950.toInt()
-        const val RED = 0xFFF85149.toInt()
-        const val GREY = 0xFF8D96A0.toInt()
+        const val BLUE = 0xFF2F74E8.toInt()
+        const val GREEN = 0xFF16875A.toInt()
+        const val RED = 0xFFCF2E52.toInt()
+        const val GREY = 0xFF8A84A3.toInt()
+        const val PINK = 0xFFD63F80.toInt()
+        const val PURPLE = 0xFF9479E6.toInt()
     }
 }
 
@@ -120,17 +122,18 @@ private class MapState {
             map.overlays += Polyline(map).apply {
                 setPoints(c.route.map { OsmPoint(it.lat, it.lon) })
                 outlinePaint.color = MapContent.BLUE
-                outlinePaint.alpha = 170
-                outlinePaint.strokeWidth = 5 * density
+                outlinePaint.alpha = 220
+                outlinePaint.strokeWidth = 6 * density
                 outlinePaint.strokeCap = Paint.Cap.ROUND
-                outlinePaint.pathEffect = DashPathEffect(floatArrayOf(10 * density, 8 * density), 0f)
+                outlinePaint.strokeJoin = Paint.Join.ROUND
                 setInfoWindow(null)
             }
         }
         c.route.forEachIndexed { i, p ->
             map.overlays += Marker(map).apply {
                 position = OsmPoint(p.lat, p.lon)
-                icon = dot(MapContent.BLUE, Color.WHITE, (if (i == 0 || i == c.route.lastIndex) 16 else 12) * density, 2 * density, filled = i == c.route.lastIndex)
+                val end = i == c.route.lastIndex
+                icon = dot(if (end) MapContent.PINK else MapContent.BLUE, Color.WHITE, (if (end) 22 else if (i == 0) 16 else 12) * density, (if (end) 4 else 2) * density, filled = end)
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                 title = when (i) {
                     0 -> "Titik mulai"
@@ -142,7 +145,7 @@ private class MapState {
         if (c.track.size >= 2) {
             map.overlays += Polyline(map).apply {
                 setPoints(c.track.map { OsmPoint(it.lat, it.lon) })
-                outlinePaint.color = MapContent.GREEN
+                outlinePaint.color = MapContent.PURPLE
                 outlinePaint.strokeWidth = 4 * density
                 outlinePaint.strokeCap = Paint.Cap.ROUND
                 setInfoWindow(null)

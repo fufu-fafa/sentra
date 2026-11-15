@@ -1,23 +1,28 @@
 package com.sentra.ui
 
-import androidx.compose.foundation.clickable
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Icon
+import androidx.compose.material.icons.rounded.BarChart
+import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Map
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,18 +32,52 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.sentra.data.AppMode
+import com.sentra.nav.NavState
 import com.sentra.ui.theme.AppTheme
 import com.sentra.ui.theme.Tokens
 
 private enum class ChildTab(val label: String, val icon: ImageVector) {
-    Home("Beranda", Icons.Filled.Home),
-    Routes("Rute", Icons.Filled.LocationOn),
-    Demo("Demo", Icons.Filled.PlayArrow),
-    Settings("Setelan", Icons.Filled.Settings),
+    Home("Beranda", Icons.Rounded.Home),
+    Map("Peta", Icons.Rounded.Map),
+    Status("Status", Icons.Rounded.BarChart),
+    Settings("Setelan", Icons.Rounded.Settings),
+}
+
+/** Pages opened on top of the tabs in mode Anak. */
+sealed interface ChildPage {
+    data object Routes : ChildPage
+    data class RouteDetail(val id: Long) : ChildPage
+    data object LiveLocation : ChildPage
+    data object History : ChildPage
+    data object Record : ChildPage
+    data object Demo : ChildPage
+
+    companion object {
+        fun encode(p: ChildPage): String = when (p) {
+            Routes -> "routes"
+            is RouteDetail -> "route:${p.id}"
+            LiveLocation -> "live"
+            History -> "history"
+            Record -> "record"
+            Demo -> "demo"
+        }
+
+        fun decode(s: String): ChildPage? = when {
+            s == "routes" -> Routes
+            s.startsWith("route:") -> s.removePrefix("route:").toLongOrNull()?.let(::RouteDetail)
+            s == "live" -> LiveLocation
+            s == "history" -> History
+            s == "record" -> Record
+            s == "demo" -> Demo
+            else -> null
+        }
+    }
 }
 
 @Composable
@@ -54,44 +93,73 @@ fun App(vm: AppViewModel, askPermissions: (AppMode) -> Unit, enableBluetooth: ()
     }
 }
 
+/** Mode Anak: four tabs, pages on top of them, and the navigation screen over everything during a trip. */
 @Composable
 private fun ChildApp(vm: AppViewModel, enableBluetooth: () -> Unit) {
     var tab by rememberSaveable { mutableStateOf(ChildTab.Home) }
+    // The page stack, saved as text so it survives rotation.
+    var stackText by rememberSaveable { mutableStateOf("") }
+    val stack = stackText.split('|').filter { it.isNotEmpty() }.mapNotNull(ChildPage::decode)
+    fun open(p: ChildPage) { stackText = (stack + p).joinToString("|", transform = ChildPage::encode) }
+    fun back() { stackText = stack.dropLast(1).joinToString("|", transform = ChildPage::encode) }
+    fun home() { stackText = ""; tab = ChildTab.Home }
+
+    val nav by vm.nav.collectAsState()
+    // "Kembali" on the navigation screen hides it while the trip goes on; a new trip shows it again.
+    var navHidden by rememberSaveable(nav.active) { mutableStateOf(false) }
+    var arrivalSeen by rememberSaveable(nav.state == NavState.ARRIVED) { mutableStateOf(false) }
+    val showNav = nav.active && !navHidden
+    val showArrival = !nav.active && nav.state == NavState.ARRIVED && !arrivalSeen
+
+    when {
+        showArrival -> {
+            BackHandler { arrivalSeen = true; home() }
+            ArrivedScreen(vm) { arrivalSeen = true; home() }
+            return
+        }
+        showNav -> {
+            BackHandler { navHidden = true }
+            NavigationScreen(vm) { navHidden = true }
+            return
+        }
+    }
+
+    val page = stack.lastOrNull()
+    if (page != null) {
+        BackHandler { back() }
+        PageBackground {
+            when (page) {
+                ChildPage.Routes -> RoutePicker(vm, onBack = ::back, onOpen = { open(ChildPage.RouteDetail(it)) }, onRecord = { open(ChildPage.Record) }, onHistory = { open(ChildPage.History) })
+                is ChildPage.RouteDetail -> RouteDetail(vm, page.id, onBack = ::back, onStarted = { stackText = "" })
+                ChildPage.LiveLocation -> LiveLocationScreen(vm, onBack = ::back, onResumeNav = { navHidden = false })
+                ChildPage.History -> RouteHistoryScreen(vm, onBack = ::back)
+                ChildPage.Record -> RecordRoute(vm, onClose = ::back)
+                ChildPage.Demo -> DemoScreen(vm, onBack = ::back)
+            }
+        }
+        return
+    }
+
     Scaffold(
         containerColor = Tokens.Bg,
+        contentWindowInsets = WindowInsets(0),
         bottomBar = {
             BottomTabs(ChildTab.entries.map { Triple(it.label, it.icon, tab == it) }) { tab = ChildTab.entries[it] }
         },
     ) { pad ->
-        Column(Modifier.padding(pad).fillMaxSize()) {
+        PageBackground(Modifier.padding(pad)) {
             when (tab) {
-                ChildTab.Home -> HomeScreen(vm, enableBluetooth) { tab = ChildTab.Routes }
-                ChildTab.Routes -> RouteScreen(vm)
-                ChildTab.Demo -> DemoScreen(vm)
+                ChildTab.Home -> HomeScreen(
+                    vm, enableBluetooth,
+                    openRoutes = { open(ChildPage.Routes) },
+                    openLive = { open(ChildPage.LiveLocation) },
+                    openSettings = { tab = ChildTab.Settings },
+                    resumeNav = { navHidden = false },
+                )
+                ChildTab.Map -> LiveLocationScreen(vm, onBack = null, onResumeNav = { navHidden = false })
+                ChildTab.Status -> DeviceStatusScreen(vm, enableBluetooth, openDemo = { open(ChildPage.Demo) })
                 ChildTab.Settings -> SettingsScreen(vm)
             }
-        }
-    }
-}
-
-/** Bottom bar with text under every icon, so nothing depends on recognising an icon (§9.7). */
-@Composable
-fun BottomTabs(tabs: List<Triple<String, ImageVector, Boolean>>, onSelect: (Int) -> Unit) {
-    NavigationBar(containerColor = Tokens.Card) {
-        tabs.forEachIndexed { i, (label, icon, selected) ->
-            NavigationBarItem(
-                selected = selected,
-                onClick = { onSelect(i) },
-                icon = { Icon(icon, contentDescription = null) },
-                label = { Text(label) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = Tokens.Accent,
-                    selectedTextColor = Tokens.Accent,
-                    indicatorColor = Tokens.Border,
-                    unselectedIconColor = Tokens.Muted,
-                    unselectedTextColor = Tokens.Muted,
-                ),
-            )
         }
     }
 }
@@ -101,28 +169,59 @@ val HistoryIcon: ImageVector get() = Icons.AutoMirrored.Filled.List
 /** First launch: is this the child's phone or a parent's? One APK, two modes. */
 @Composable
 fun ModeScreen(onChoose: (AppMode) -> Unit) {
-    Scaffold(containerColor = Tokens.Bg) { pad ->
-        Column(Modifier.padding(pad).fillMaxSize()) {
-            ScreenTitle("Selamat datang", "HP ini untuk siapa? Bisa diganti nanti di Setelan.")
-            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    PageBackground {
+        Column(
+            Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Spacer(Modifier.height(40.dp))
+            SentraLogo(150.dp)
+            Spacer(Modifier.height(28.dp))
+            Text(
+                "HP ini untuk siapa?",
+                style = MaterialTheme.typography.titleLarge, color = Tokens.Text,
+            )
+            Text(
+                "Bisa diganti nanti di Setelan.",
+                style = MaterialTheme.typography.bodyMedium, color = AppTheme.extra.muted, textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(20.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 ModeCard(
-                    "Anak",
-                    "HP ini dibawa anak, tersambung ke sleeve dan memandu rute.",
+                    care = false,
+                    title = "SENTRA",
+                    who = "Untuk anak",
+                    body = "Tersambung ke sleeve dan memandu rute dengan getaran dan suara.",
                 ) { onChoose(AppMode.CHILD) }
                 ModeCard(
-                    "Orang tua",
-                    "HP ini menampilkan lokasi anak dan berbunyi bila ada masalah di jalan.",
+                    care = true,
+                    title = "SENTRA Care",
+                    who = "Untuk orang tua / guru",
+                    body = "Melihat lokasi anak dan berbunyi bila ada masalah di jalan.",
                 ) { onChoose(AppMode.PARENT) }
             }
+            Spacer(Modifier.height(24.dp))
         }
     }
 }
 
 @Composable
-private fun ModeCard(title: String, body: String, onClick: () -> Unit) {
-    Card(Modifier.clickable(onClickLabel = "Pilih mode $title", onClick = onClick)) {
-        Text(title, style = MaterialTheme.typography.titleLarge)
-        Spacer(Modifier.height(4.dp))
-        Text(body, color = AppTheme.extra.muted)
+private fun ModeCard(care: Boolean, title: String, who: String, body: String, onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        onClickLabel = "Pilih $title",
+        background = if (care) Tokens.PinkSoft else Tokens.Card,
+        border = if (care) Tokens.PinkLight.copy(alpha = .5f) else Tokens.Border,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            SentraMark(64.dp, care)
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleLarge, color = if (care) Tokens.Pink else Tokens.Brand)
+                Text(who, style = MaterialTheme.typography.labelLarge, color = Tokens.Text)
+                Spacer(Modifier.height(2.dp))
+                Text(body, color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall)
+            }
+        }
     }
 }

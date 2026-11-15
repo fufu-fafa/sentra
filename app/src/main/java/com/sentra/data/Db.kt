@@ -9,6 +9,8 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.sentra.nav.GeoPoint
 import kotlinx.coroutines.flow.Flow
 
@@ -69,6 +71,34 @@ data class LocationEntity(
     val bearing: Float,
 )
 
+/** A finished trip, for Riwayat Rute on the child's phone. Kept on the phone only. */
+@Entity(tableName = "trips")
+data class TripEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val routeId: Long,
+    /** Copied, so the trip keeps its name after the route is deleted. */
+    val routeName: String,
+    val startedAt: Long,
+    val endedAt: Long,
+    /** True when the destination was reached, false when the trip was stopped early. */
+    val arrived: Boolean,
+    val lengthM: Double,
+) {
+    val durationMs: Long get() = endedAt - startedAt
+}
+
+@Dao
+interface TripDao {
+    @Query("SELECT * FROM trips ORDER BY startedAt DESC LIMIT 200")
+    fun recent(): Flow<List<TripEntity>>
+
+    @Insert
+    suspend fun insert(trip: TripEntity): Long
+
+    @Query("DELETE FROM trips")
+    suspend fun clear()
+}
+
 @Dao
 interface RouteDao {
     @Query("SELECT * FROM routes ORDER BY name COLLATE NOCASE")
@@ -124,13 +154,25 @@ interface OutboxDao : Outbox {
     suspend fun clearLocations()
 }
 
-@Database(entities = [RouteEntity::class, EventEntity::class, LocationEntity::class], version = 1, exportSchema = false)
+@Database(entities = [RouteEntity::class, EventEntity::class, LocationEntity::class, TripEntity::class], version = 2, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun routes(): RouteDao
     abstract fun outbox(): OutboxDao
+    abstract fun trips(): TripDao
 
     companion object {
+        /** Version 2 adds Riwayat Rute. */
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `trips` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `routeId` INTEGER NOT NULL, " +
+                        "`routeName` TEXT NOT NULL, `startedAt` INTEGER NOT NULL, `endedAt` INTEGER NOT NULL, `arrived` INTEGER NOT NULL, " +
+                        "`lengthM` REAL NOT NULL)"
+                )
+            }
+        }
+
         fun create(context: Context): AppDatabase =
-            Room.databaseBuilder(context, AppDatabase::class.java, "sentra.db").build()
+            Room.databaseBuilder(context, AppDatabase::class.java, "sentra.db").addMigrations(MIGRATION_1_2).build()
     }
 }

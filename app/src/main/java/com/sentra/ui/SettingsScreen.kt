@@ -1,5 +1,12 @@
 package com.sentra.ui
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Bluetooth
+import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.FamilyRestroom
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.PersonAdd
+import androidx.compose.material.icons.rounded.Science
 import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
@@ -64,12 +71,12 @@ fun SettingsScreen(vm: AppViewModel) {
         ScreenTitle("Setelan")
         Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Card {
-                SectionLabel("Anak")
+                SectionLabel("Anak", icon = Icons.Rounded.Person)
                 SavedField("Nama panggilan (dilihat orang tua)", settings.childName, vm::setChildName)
             }
             ParentsCard(vm)
             Card {
-                SectionLabel("Uji tanpa alat")
+                SectionLabel("Uji tanpa alat", icon = Icons.Rounded.Science)
                 SwitchRow("Sleeve simulasi", "Sleeve pura-pura di dalam aplikasi.", settings.simulatedSleeve, vm::setSimulatedSleeve)
                 SwitchRow("GPS simulasi", "Saat navigasi, posisi berjalan sendiri di rute.", settings.simulatedGps, vm::setSimulatedGps)
                 OutlinedButton(onClick = { vm.addSampleRoute() }, modifier = Modifier.fillMaxWidth()) { Text("Tambah rute contoh") }
@@ -79,7 +86,7 @@ fun SettingsScreen(vm: AppViewModel) {
             }
             TestLogCard(vm)
             Card {
-                SectionLabel("Sleeve")
+                SectionLabel("Sleeve", icon = Icons.Rounded.Bluetooth)
                 Text(settings.deviceName ?: "Belum ada sleeve", style = MaterialTheme.typography.titleMedium)
                 settings.deviceAddress?.let { Text(it, color = AppTheme.extra.muted, fontFamily = Mono, style = MaterialTheme.typography.bodySmall) }
                 Spacer(Modifier.height(8.dp))
@@ -160,7 +167,7 @@ private fun ParentsCard(vm: AppViewModel) {
     LaunchedEffect(settings.wearerToken, health?.parents) { vm.refreshParents() }
 
     Card {
-        SectionLabel("Orang tua")
+        SectionLabel("Orang tua (SENTRA Care)", icon = Icons.Rounded.FamilyRestroom, tint = Tokens.Pink)
         Text(
             "Orang tua yang terhubung melihat lokasi dan alarm di SENTRA Care, lewat relay.",
             color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall,
@@ -177,9 +184,7 @@ private fun ParentsCard(vm: AppViewModel) {
         }
         if (parents.isEmpty() && settings.wearerToken != null) Text("Belum ada orang tua terhubung.")
         Spacer(Modifier.height(8.dp))
-        Button(onClick = { vm.newInvite() }, enabled = settings.relayUrl.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
-            Text("Undang orang tua")
-        }
+        PrimaryButton("Undang orang tua", { vm.newInvite() }, enabled = settings.relayUrl.isNotBlank(), icon = Icons.Rounded.PersonAdd, brush = Tokens.PinkGradient, height = 50.dp)
         invite?.let { inv ->
             if (inv.expiresAt > System.currentTimeMillis()) {
                 Spacer(Modifier.height(8.dp))
@@ -220,7 +225,7 @@ private fun TestLogCard(vm: AppViewModel) {
     val context = LocalContext.current
     var label by rememberSaveable { mutableStateOf("") }
     Card {
-        SectionLabel("Catatan uji")
+        SectionLabel("Catatan uji", icon = Icons.Rounded.Description)
         Text("Jarak rintangan, waktu ACK dan GPS ke CSV, untuk Bab 10.", color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(8.dp))
         if (recording == null) {
