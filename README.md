@@ -11,6 +11,8 @@ navigation algorithm of §9.5 are kept as specified.
     vibration and voice, keeps a trip history, Mode Demo for the booth.
   - **Orang tua** (SENTRA Care, pink): dashboard, live map, trip history and full-screen alarms.
 - [`server_relay/`](server_relay/README.md): the server between the two.
+- [`firmware/`](firmware/README.md): Arduino firmware for the sleeve (XIAO ESP32-C3). Pins are a
+  template in `firmware/SENTRA_firmware/pins.h` until the sleeve is wired.
 
 The relay is an add-on. Navigation and the sleeve work with no internet; events and GPS fixes wait
 in a queue on the child's phone and are sent when the relay can be reached.
@@ -22,6 +24,7 @@ in a queue on the child's phone and are sent when the relay can be reached.
 | Android app | Kotlin 2.3, Jetpack Compose (Material 3), Coroutines/Flow, Room + KSP, DataStore, Play Services Location, osmdroid (OpenStreetMap, no API key), Android TextToSpeech, optional Firebase Cloud Messaging. minSdk 26, targetSdk 36. Gradle 9.3.1, AGP 9.1.1 |
 | Relay | Node.js ≥ 22 with built-in `node:sqlite` and `node:http`, Server-Sent Events, optional `firebase-admin` for push |
 | Web SENTRA Care | One HTML page served by the relay, Leaflet 1.9.4 |
+| Sleeve firmware | Arduino C++ for the XIAO ESP32-C3, esp32 core 3.x, built-in BLE library |
 
 ## Directory map
 
@@ -41,6 +44,7 @@ in a queue on the child's phone and are sent when the relay can be reached.
 | [`app/src/test/`](app/src/test/README.md) | JVM unit tests |
 | [`gradle/`](gradle/README.md) | Version catalog and wrapper |
 | [`server_relay/`](server_relay/README.md) | Relay server, browser SENTRA Care, push, end-to-end test, fake child |
+| [`firmware/`](firmware/README.md) | Sleeve firmware, pin template (`pins.h`), BLE contract and tuning (`config.h`) |
 
 Root files: `build.gradle.kts` (plugins only), `settings.gradle.kts` (repositories, `:app`),
 `gradle.properties` (4 GB heap, build cache, AndroidX), `gradlew` / `gradlew.bat`, `.gitignore`
@@ -95,6 +99,8 @@ at a time, so disconnect nRF Connect first.
 
 ## Not done yet
 
+- The sleeve firmware compiles for the XIAO ESP32-C3 (esp32 core 3.3.12) but has never run on
+  one; the sleeve is not built yet.
 - Never run against the real sleeve. Mode Anak has run on one phone (Samsung SM-G990E) with the
   simulated sleeve and GPS; SENTRA Care has not been checked on a phone since the redesign.
 - Deployment of the relay to the VPS, and Firebase push.
