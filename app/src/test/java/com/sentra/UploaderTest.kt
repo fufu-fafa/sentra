@@ -95,10 +95,10 @@ class UploaderTest {
     // --- Wire format: must match server_relay/server.mjs ----------------------------------------------
 
     @Test fun eventJsonUsesThePhonesRowIdAsSeq() {
-        val j = ChildRelay.eventJson(event(7, "KELUAR_RUTE"))
+        val j = ChildRelay.eventJson(event(7, "OFF_ROUTE"))
         assertEquals(7L, j.getLong("seq"))
         assertEquals("AA:BB", j.getString("deviceAddress"))
-        assertEquals("KELUAR_RUTE", j.getString("type"))
+        assertEquals("OFF_ROUTE", j.getString("type"))
         assertEquals(1007L, j.getLong("occurredAt"))
         assertEquals(-6.9, j.getDouble("lat"), 1e-9)
         assertFalse(ChildRelay.eventJson(event(8).copy(lat = null, lon = null)).has("lat"))
@@ -153,14 +153,14 @@ class UploaderTest {
 
     @Test fun alarmsAreTheThreeTheRelayRePushes() {
         assertEquals(
-            setOf(CareEventType.KELUAR_RUTE, CareEventType.TERPUTUS, CareEventType.OFFLINE),
+            setOf(CareEventType.OFF_ROUTE, CareEventType.SLEEVE_DISCONNECTED, CareEventType.OFFLINE),
             CareEventType.entries.filter { it.isAlarm }.toSet(),
         )
         CareEventType.entries.forEach { assertEquals(it.isAlarm, AlertRules.careAlert(it) == CareAlert.ALARM) }
         assertEquals(CareAlert.RING_ONCE, AlertRules.careAlert(CareEventType.ARRIVED))
         assertEquals(CareAlert.NOTIFY, AlertRules.careAlert(CareEventType.NAV_START))
-        assertEquals(CareAlert.HISTORY, AlertRules.careAlert(CareEventType.BELOK_KIRI))
-        assertEquals(CareAlert.HISTORY, AlertRules.careAlert(CareEventType.TERSAMBUNG))
-        assertEquals("HP ANAK OFFLINE", AlertRules.alarmTitle(CareEventType.OFFLINE))
+        assertEquals(CareAlert.HISTORY, AlertRules.careAlert(CareEventType.TURN_LEFT))
+        assertEquals(CareAlert.HISTORY, AlertRules.careAlert(CareEventType.SLEEVE_CONNECTED))
+        assertEquals("CHILD'S PHONE OFFLINE", AlertRules.alarmTitle(CareEventType.OFFLINE))
     }
 }

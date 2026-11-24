@@ -30,7 +30,7 @@ class NavEngineTest {
 
     @Test fun distanceAndBearing() {
         assertEquals(100.0, Geo.distanceM(start, b), 0.5)
-        assertEquals(90.0, Geo.bearingDeg(start, b), 0.5)          // "ke timur harus ±90°"
+        assertEquals(90.0, Geo.bearingDeg(start, b), 0.5)          // "east must be ±90°"
         assertEquals(0.0, Geo.bearingDeg(start, from(start, 0.0, 50.0)), 0.5)
         assertEquals(180.0, Geo.bearingDeg(b, c), 0.5)
         assertEquals(270.0, Geo.bearingDeg(b, start), 0.5)         // never negative
@@ -63,7 +63,7 @@ class NavEngineTest {
         val e = NavEngine(route, "Sekolah")
         val out = e.start()
         assertEquals(listOf(SleeveCommand.FORWARD), out.sent())
-        assertEquals(listOf("Navigasi dimulai"), out.spoken())
+        assertEquals(listOf("Navigation started"), out.spoken())
         assertEquals(listOf("NAV_START"), out.reports())
         assertEquals(NavState.NAVIGATING, e.snapshot.state)
         assertEquals(2, e.snapshot.targetNumber)
@@ -82,8 +82,8 @@ class NavEngineTest {
         t += 1000
         val near = e.onFix(from(start, 90.0, 88.0), 5f, t)
         assertEquals(listOf(SleeveCommand.RIGHT), near.sent())
-        assertEquals(listOf("Sebentar lagi belok kanan"), near.spoken())
-        assertEquals(listOf("BELOK_KANAN"), near.reports())
+        assertEquals(listOf("Turn right soon"), near.spoken())
+        assertEquals(listOf("TURN_RIGHT"), near.reports())
         assertEquals(SleeveCommand.RIGHT, e.currentCommand)
         t += 1000
         assertTrue(e.onFix(from(start, 90.0, 91.0), 5f, t).isEmpty())
@@ -101,7 +101,7 @@ class NavEngineTest {
         assertTrue(e.onFix(from(b, 180.0, 60.0), 5f, t).isEmpty())
         val end = e.onFix(from(b, 180.0, 96.0), 5f, t + 1000)
         assertEquals(listOf(SleeveCommand.ARRIVED), end.sent())
-        assertEquals(listOf("Kamu sudah sampai"), end.spoken())
+        assertEquals(listOf("You have arrived"), end.spoken())
         assertEquals(listOf("ARRIVED"), end.reports())
         assertEquals(NavState.ARRIVED, e.snapshot.state)
         assertNull(e.currentCommand)
@@ -124,8 +124,8 @@ class NavEngineTest {
         assertTrue(e.onFix(from(start, 90.0, 36.0), 5f, 1000).isEmpty()) // 64 m: within the 15 m margin
         val out = e.onFix(from(start, 90.0, 30.0), 5f, 2000)    // 70 m: more than 15 m farther
         assertEquals(listOf(SleeveCommand.STOP), out.sent())
-        assertEquals(listOf("KELUAR_RUTE"), out.reports())
-        assertEquals(listOf("Kamu keluar rute, berhenti dan minta bantuan"), out.spoken())
+        assertEquals(listOf("OFF_ROUTE"), out.reports())
+        assertEquals(listOf("You are off the route, stop and ask for help"), out.spoken())
         assertEquals(NavState.OFF_ROUTE, e.snapshot.state)
         assertEquals(SleeveCommand.STOP, e.currentCommand)
         // Still out: not repeated.
@@ -134,7 +134,7 @@ class NavEngineTest {
         // Back within the limit: resume.
         val back = e.onFix(from(start, 90.0, 42.0), 5f, 5000)
         assertEquals(listOf(SleeveCommand.FORWARD), back.sent())
-        assertEquals(listOf("KEMBALI_RUTE"), back.reports())
+        assertEquals(listOf("BACK_ON_ROUTE"), back.reports())
         assertEquals(NavState.NAVIGATING, e.snapshot.state)
     }
 
@@ -143,7 +143,7 @@ class NavEngineTest {
         e.start()
         e.onFix(start, 5f, 0)
         assertTrue(e.onFix(from(start, 270.0, 14.0), 5f, 1000).isEmpty())
-        assertEquals(listOf("KELUAR_RUTE"), e.onFix(from(start, 270.0, 16.0), 5f, 2000).reports())
+        assertEquals(listOf("OFF_ROUTE"), e.onFix(from(start, 270.0, 16.0), 5f, 2000).reports())
     }
 
     @Test fun aStraightPointIsNotAnnounced() {
@@ -161,8 +161,8 @@ class NavEngineTest {
         e.start()
         val out = e.onFix(from(start, 90.0, 90.0), 5f, 0)
         assertEquals(listOf(SleeveCommand.STOP), out.sent())
-        assertEquals(listOf("Putar balik"), out.spoken())
-        assertEquals(listOf("PUTAR_BALIK"), out.reports())
+        assertEquals(listOf("Turn around"), out.spoken())
+        assertEquals(listOf("U_TURN"), out.reports())
     }
 
     @Test fun delayedForwardDoesNotCancelATurnAnnouncedMeanwhile() {
@@ -191,11 +191,11 @@ class NavEngineTest {
 
     @Test fun buttonInfoReadsTheNextPointAndDistance() {
         val e = NavEngine(route)
-        assertEquals("Navigasi belum dimulai", e.info())
+        assertEquals("Navigation has not started", e.info())
         e.start()
-        assertEquals("Titik berikutnya 2, menunggu sinyal GPS", e.info())
+        assertEquals("Next point 2, waiting for GPS signal", e.info())
         e.onFix(from(start, 90.0, 60.0), 5f, 0)
-        assertEquals("Titik berikutnya 2, 40 meter lagi", e.info())
+        assertEquals("Next point 2, 40 meters to go", e.info())
     }
 
     @Test(expected = IllegalArgumentException::class)

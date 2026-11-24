@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Not required: a parent's phone (mode Orang tua) never talks to the sleeve. -->
+    <!-- Not required: a parent's phone (Parent mode) never talks to the sleeve. -->
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
 
@@ -16,7 +16,7 @@
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
 
-    <!-- GPS for Rekam Rute and navigation (and, on Android 8–11, for the Bluetooth scan). -->
+    <!-- GPS for Record Route and navigation (and, on Android 8–11, for the Bluetooth scan). -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
@@ -51,13 +51,13 @@
             </intent-filter>
         </activity>
 
-        <!-- Mode Anak: sleeve link, GPS and navigation in the background. -->
+        <!-- Child mode: sleeve link, GPS and navigation in the background. -->
         <service
             android:name=".service.SentraService"
             android:exported="false"
             android:foregroundServiceType="connectedDevice|location" />
 
-        <!-- Mode Orang tua: the live stream, when push isn't available. -->
+        <!-- Parent mode: the live stream, when push isn't available. -->
         <service
             android:name=".care.CareService"
             android:exported="false"

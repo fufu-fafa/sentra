@@ -1,13 +1,13 @@
 <!doctype html>
-<html lang="id">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#fde7f0">
 <title>SENTRA Care</title>
-<!-- SENTRA Care in a browser, served by the relay. Same API as the app's mode Orang tua: link with
-     an invite code, keep the live stream open, show the child on a map, ring on KELUAR_RUTE,
-     TERPUTUS and OFFLINE. A browser can't wake a locked phone, so the page has to stay open.
+<!-- SENTRA Care in a browser, served by the relay. Same API as the app's Parent mode: link with
+     an invite code, keep the live stream open, show the child on a map, ring on OFF_ROUTE,
+     SLEEVE_DISCONNECTED and OFFLINE. A browser can't wake a locked phone, so the page has to stay open.
      The look follows the app (app/src/main/java/com/sentra/ui/theme/Theme.kt): lavender
      background, white cards, pink for SENTRA Care. -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
@@ -101,7 +101,7 @@
   .map { height: 320px; border-radius: 20px; margin-top: 14px; background: var(--accent-soft); z-index: 0; overflow: hidden; }
   .nomap { display: flex; align-items: center; justify-content: center; text-align: center; padding: 16px; color: var(--muted); }
 
-  /* Riwayat and Alarm */
+  /* History and Alerts */
   .seg { display: flex; background: var(--bg); border-radius: 999px; padding: 4px; margin: 18px 0 10px; }
   .seg button { margin: 0; min-height: 40px; padding: 6px 0; background: transparent; color: var(--muted); }
   .seg button.on { background: var(--card); color: var(--pink); box-shadow: var(--shadow); }
@@ -171,27 +171,27 @@
 
 <header id="top">
   <svg class="mark" aria-hidden="true"><use href="#mark"/></svg>
-  <div class="grow"><h1>SENTRA Care</h1><p id="who"></p><p class="tag" id="tag" hidden>Selalu di sisi mereka <svg class="i"><use href="#i-heart"/></svg></p></div>
-  <button class="bell" id="bell" hidden aria-label="Alarm"><svg class="i"><use href="#i-bell"/></svg><b id="bellCount" hidden></b></button>
+  <div class="grow"><h1>SENTRA Care</h1><p id="who"></p><p class="tag" id="tag" hidden>Always by their side <svg class="i"><use href="#i-heart"/></svg></p></div>
+  <button class="bell" id="bell" hidden aria-label="Alerts"><svg class="i"><use href="#i-bell"/></svg><b id="bellCount" hidden></b></button>
 </header>
 
 <div id="sound" class="card banner" hidden>
-  <div>Ketuk sekali agar halaman ini bisa berbunyi saat ada alarm. Biarkan halaman tetap terbuka dan layar menyala.</div>
-  <button id="soundBtn">Nyalakan suara alarm</button>
+  <div>Tap once so this page can ring when an alarm comes in. Keep the page open and the screen on.</div>
+  <button id="soundBtn">Turn on alarm sound</button>
 </div>
 
 <div id="children"></div>
 
 <div id="link" class="card" hidden>
-  <p class="section"><svg class="i"><use href="#i-family"/></svg>Hubungkan ke HP anak</p>
-  <div class="muted">Di HP anak: Setelan → Undang orang tua. Ketik kode 6 angka di sini.</div>
+  <p class="section"><svg class="i"><use href="#i-family"/></svg>Link to the child's phone</p>
+  <div class="muted">On the child's phone: Settings → Invite parent. Type the 6-digit code here.</div>
   <form id="linkForm" autocomplete="off">
-    <label for="code">Kode undangan</label>
+    <label for="code">Invite code</label>
     <input id="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="000000">
-    <label for="name">Nama Anda (tampil sebagai "Dilihat oleh …")</label>
+    <label for="name">Your name (shown as "Seen by …")</label>
     <input id="name" maxlength="40">
-    <button class="primary" id="linkBtn" disabled>Hubungkan</button>
-    <button type="button" id="cancelLink" hidden>Batal</button>
+    <button class="primary" id="linkBtn" disabled>Link</button>
+    <button type="button" id="cancelLink" hidden>Cancel</button>
   </form>
   <div class="msg" id="linkMsg"></div>
 </div>
@@ -199,15 +199,15 @@
 <div id="status" class="card" hidden>
   <div class="row">
     <div class="grow"><p class="section" style="margin:0"><svg class="i" style="color:var(--muted)"><use href="#i-info"/></svg>Relay</p><div class="mono muted" id="relay"></div></div>
-    <span class="pill" id="live">Mati</span>
+    <span class="pill" id="live">Off</span>
   </div>
   <div class="msg bad" id="streamErr"></div>
   <div class="muted small" id="caps"></div>
 </div>
 
 <div class="foot">
-  <button id="another" hidden>Hubungkan anak lain</button>
-  <button id="signout" class="danger" hidden>Keluar dari browser ini</button>
+  <button id="another" hidden>Link another child</button>
+  <button id="signout" class="danger" hidden>Sign out of this browser</button>
 </div>
 
 <div id="alarm" role="alertdialog" aria-live="assertive">
@@ -216,8 +216,8 @@
   <p id="alarmWho"></p>
   <p id="alarmMsg"></p>
   <p class="more" id="alarmMore"></p>
-  <p class="more" id="alarmMute" hidden>Suara mati: ketuk di luar tombol untuk menyalakannya.</p>
-  <button id="ackBtn">Sudah saya lihat</button>
+  <p class="more" id="alarmMute" hidden>Sound is off: tap outside the button to turn it on.</p>
+  <button id="ackBtn">I've seen it</button>
 </div>
 
 <script>
@@ -227,14 +227,14 @@ const store = {
   set: (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} },
 };
 const LABELS = {
-  NAV_START: 'Mulai jalan', BELOK_KIRI: 'Belok kiri', BELOK_KANAN: 'Belok kanan', PUTAR_BALIK: 'Putar balik',
-  KELUAR_RUTE: 'Keluar rute', KEMBALI_RUTE: 'Kembali ke rute', ARRIVED: 'Sampai', NAV_STOP: 'Navigasi dihentikan',
-  TERPUTUS: 'Sleeve terputus', TERSAMBUNG: 'Sleeve tersambung', OFFLINE: 'HP anak offline', TEST: 'Tes alarm',
+  NAV_START: 'Started walking', TURN_LEFT: 'Turn left', TURN_RIGHT: 'Turn right', U_TURN: 'U-turn',
+  OFF_ROUTE: 'Off route', BACK_ON_ROUTE: 'Back on route', ARRIVED: 'Arrived', NAV_STOP: 'Navigation stopped',
+  SLEEVE_DISCONNECTED: 'Sleeve disconnected', SLEEVE_CONNECTED: 'Sleeve connected', OFFLINE: "Child's phone offline", TEST: 'Test alarm',
 };
-const NAV_STATES = { IDLE: 'Tidak jalan', NAVIGATING: 'Di rute', OFF_ROUTE: 'Keluar rute', ARRIVED: 'Sampai' };
-const ALARM_TITLES = { KELUAR_RUTE: 'KELUAR RUTE', TERPUTUS: 'SLEEVE TERPUTUS', OFFLINE: 'HP ANAK OFFLINE' };
+const NAV_STATES = { IDLE: 'Not walking', NAVIGATING: 'On route', OFF_ROUTE: 'Off route', ARRIVED: 'Arrived' };
+const ALARM_TITLES = { OFF_ROUTE: 'OFF ROUTE', SLEEVE_DISCONNECTED: 'SLEEVE DISCONNECTED', OFFLINE: "CHILD'S PHONE OFFLINE" };
 const ALARMS = new Set(Object.keys(ALARM_TITLES));
-const GOOD = new Set(['ARRIVED', 'TERSAMBUNG', 'KEMBALI_RUTE']);
+const GOOD = new Set(['ARRIVED', 'SLEEVE_CONNECTED', 'BACK_ON_ROUTE']);
 const RING_WINDOW_MS = 30 * 60_000; // ring for unacknowledged alarms this recent, e.g. after reopening the page
 const TRAIL_MS = 2 * 3600_000;      // how much of the child's track the map draws
 
@@ -274,7 +274,7 @@ async function loadDashboard() {
 
 function setLive(state, err = '') {
   const el = $('live');
-  el.textContent = { live: 'Langsung', connecting: 'Menyambung…', off: 'Mati' }[state];
+  el.textContent = { live: 'Live', connecting: 'Connecting…', off: 'Off' }[state];
   el.className = 'pill ' + ({ live: 'ok', off: 'bad' }[state] || '');
   $('streamErr').textContent = err;
 }
@@ -288,7 +288,7 @@ async function stream() {
       const headers = { Authorization: `Bearer ${token}` };
       if (lastEventId) headers['Last-Event-ID'] = String(lastEventId);
       const r = await fetch('/v1/stream', { headers, signal: ctrl.signal, cache: 'no-store' });
-      if (r.status === 401) { signOut('Browser ini sudah diputus. Hubungkan lagi dengan kode baru.'); return; }
+      if (r.status === 401) { signOut('This browser was unlinked. Link again with a new code.'); return; }
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       setLive('live');
       await loadDashboard();
@@ -308,10 +308,10 @@ async function stream() {
           if (type && data) onMessage(type, JSON.parse(data));
         }
       }
-      throw new Error('sambungan tertutup');
+      throw new Error('connection closed');
     } catch (err) {
       if (ctrl.signal.aborted) return;
-      setLive('off', `Relay tidak terjangkau (${err.message}). Mencoba lagi…`);
+      setLive('off', `Relay unreachable (${err.message}). Retrying…`);
       await new Promise((ok) => setTimeout(ok, 5000));
     }
   }
@@ -340,7 +340,7 @@ function onMessage(type, d) {
     case 'online': if (w) w.offline = false; break;
     case 'offline':
       // Silence during a trip also arrives as an OFFLINE alarm event, which is what rings.
-      if (w) { w.offline = true; if (!d.navigating) notify(`HP ${w.name} offline`, 'Tidak ada kabar dari HP anak selama 15 menit.', 'offline-' + w.id); }
+      if (w) { w.offline = true; if (!d.navigating) notify(`${w.name}'s phone offline`, "No word from the child's phone for 15 minutes.", 'offline-' + w.id); }
       break;
     case 'ack':
       if (w) { const e = w.events.find((x) => x.id === d.eventId); if (e) Object.assign(e, { ackedBy: d.by, ackedAt: d.at }); }
@@ -363,7 +363,7 @@ function maybeRing(e) {
   const known = ringing.find((x) => x.id === e.id);
   if (known) { if (e.escalated) Object.assign(known, e); return; }
   ringing.push(e);
-  notify(`${LABELS[e.type]} — ${e.childName}`, e.message || 'Buka halaman dan tandai sudah dilihat.', 'event-' + e.id);
+  notify(`${LABELS[e.type]} — ${e.childName}`, e.message || 'Open the page and mark it as seen.', 'event-' + e.id);
   updateAlarm();
 }
 
@@ -375,30 +375,30 @@ function updateAlarm() {
   $('alarmWho').textContent = `${e.childName} · ${time(e.occurredAt)}`;
   $('alarmMsg').textContent = e.message || '';
   $('alarmMore').textContent = [
-    e.escalated ? 'Belum ada yang melihat' : '',
-    e.batteryPct != null ? `baterai HP anak ${e.batteryPct}%` : '',
-    ringing.length > 1 ? `${ringing.length - 1} alarm lain menunggu` : '',
+    e.escalated ? 'Nobody has seen this yet' : '',
+    e.batteryPct != null ? `child's phone battery ${e.batteryPct}%` : '',
+    ringing.length > 1 ? `${ringing.length - 1} more ${ringing.length === 2 ? 'alarm' : 'alarms'} waiting` : '',
   ].filter(Boolean).join(' · ');
   $('alarmMute').hidden = siren.ready;
   $('ackBtn').disabled = false;
-  $('ackBtn').textContent = 'Sudah saya lihat';
+  $('ackBtn').textContent = "I've seen it";
   document.title = `⚠ ${LABELS[e.type]} — ${e.childName}`;
   siren.start();
 }
 
 async function acknowledge(id, btn) {
-  if (btn) { btn.disabled = true; btn.textContent = 'Mengirim…'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
   try {
     await api('POST', `/v1/events/${id}/ack`);
     ringing = ringing.filter((e) => e.id !== id);
     for (const w of children.values()) {
       const e = w.events.find((x) => x.id === id);
-      if (e && !e.ackedAt) Object.assign(e, { ackedBy: me || 'Anda', ackedAt: Date.now() });
+      if (e && !e.ackedAt) Object.assign(e, { ackedBy: me || 'You', ackedAt: Date.now() });
     }
     updateAlarm();
     render();
   } catch (err) {
-    if (btn) { btn.disabled = false; btn.textContent = `Coba lagi (${err.message})`; }
+    if (btn) { btn.disabled = false; btn.textContent = `Try again (${err.message})`; }
   }
 }
 
@@ -464,10 +464,10 @@ function cardFor(w) {
 }
 
 function drawMap(w, c) {
-  if (!window.L) { c.mapEl.classList.add('nomap'); c.mapEl.textContent = 'Peta belum termuat (perlu internet untuk OpenStreetMap).'; return; }
+  if (!window.L) { c.mapEl.classList.add('nomap'); c.mapEl.textContent = 'Map not loaded (OpenStreetMap needs internet).'; return; }
   const loc = w.location;
   if (!c.map) {
-    if (!loc && !(w.status?.route?.length)) { c.mapEl.classList.add('nomap'); c.mapEl.textContent = 'Belum ada lokasi dari HP anak.'; return; }
+    if (!loc && !(w.status?.route?.length)) { c.mapEl.classList.add('nomap'); c.mapEl.textContent = "No location from the child's phone yet."; return; }
     c.mapEl.classList.remove('nomap'); c.mapEl.textContent = '';
     c.map = L.map(c.mapEl, { zoomControl: true, attributionControl: true });
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(c.map);
@@ -491,7 +491,7 @@ function drawMap(w, c) {
       L.circleMarker(p, end
         ? { radius: 9, color: '#fff', weight: 3, fillColor: COLORS.pink, fillOpacity: 1 }
         : { radius: i === 0 ? 7 : 5, color: COLORS.blue, weight: 2, fillColor: '#fff', fillOpacity: 1 })
-        .bindTooltip(i === 0 ? 'Mulai' : end ? 'Tujuan' : `Titik ${i + 1}`).addTo(c.routeDots);
+        .bindTooltip(i === 0 ? 'Start' : end ? 'Destination' : `Point ${i + 1}`).addTo(c.routeDots);
     });
     if (route.length && !loc) c.map.fitBounds(c.routeLine.getBounds().pad(0.2));
   }
@@ -512,13 +512,13 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(
 const icon = (name, cls = 'i') => `<svg class="${cls}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
 function ago(t) {
   const s = Math.round((Date.now() - t) / 1000);
-  if (s < 10) return 'baru saja';
-  if (s < 60) return `${s} dtk lalu`;
-  if (s < 3600) return `${Math.round(s / 60)} mnt lalu`;
-  if (s < 86400) return `${Math.round(s / 3600)} jam lalu`;
-  return `${Math.round(s / 86400)} hari lalu`;
+  if (s < 10) return 'just now';
+  if (s < 60) return `${s} sec ago`;
+  if (s < 3600) return `${Math.round(s / 60)} min ago`;
+  if (s < 86400) return `${Math.round(s / 3600)} hr ago`;
+  return `${Math.round(s / 86400)} days ago`;
 }
-const when = (t) => new Date(t).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const when = (t) => new Date(t).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 const isToday = (t) => startOfDay(t) === startOfDay(Date.now());
 const stamp = (t) => (isToday(t) ? time(t) : `${dayName(t)}, ${time(t)}`);
 
@@ -529,7 +529,7 @@ function tripsOf(events) {
   for (const e of [...events].sort((a, b) => a.occurredAt - b.occurredAt || a.id - b.id)) {
     if (e.type === 'NAV_START') {
       if (open) out.push(open);
-      open = { route: / di rute (.+?)(?:, \d+ titik)?\.$/.exec(e.message || '')?.[1] || null, start: e.occurredAt, end: null, outcome: null, events: [e] };
+      open = { route: / on route (.+?)(?:, \d+ points)?\.$/.exec(e.message || '')?.[1] || null, start: e.occurredAt, end: null, outcome: null, events: [e] };
     } else if (e.type === 'ARRIVED' || e.type === 'NAV_STOP') {
       if (open) { open.end = e.occurredAt; open.outcome = e.type; open.events.push(e); out.push(open); open = null; }
     } else if (open) open.events.push(e);
@@ -539,34 +539,34 @@ function tripsOf(events) {
 }
 
 /** What the Alarm list shows: everything but the routine turn-by-turn events. */
-const ROUTINE = new Set(['NAV_START', 'BELOK_KIRI', 'BELOK_KANAN', 'PUTAR_BALIK']);
+const ROUTINE = new Set(['NAV_START', 'TURN_LEFT', 'TURN_RIGHT', 'U_TURN']);
 const ALERT_LOOK = {
-  KELUAR_RUTE: ['warn', 'warn'], TERPUTUS: ['go', 'bt'], OFFLINE: ['go', 'info'],
-  ARRIVED: ['ok', 'check'], TERSAMBUNG: ['ok', 'check'], KEMBALI_RUTE: ['ok', 'check'], NAV_STOP: ['warn', 'flag'],
+  OFF_ROUTE: ['warn', 'warn'], SLEEVE_DISCONNECTED: ['go', 'bt'], OFFLINE: ['go', 'info'],
+  ARRIVED: ['ok', 'check'], SLEEVE_CONNECTED: ['ok', 'check'], BACK_ON_ROUTE: ['ok', 'check'], NAV_STOP: ['warn', 'flag'],
 };
 
 function look(w) {
   const s = w.status || {};
-  if (w.offline) return ['bad', 'HP offline'];
-  if (w.navigating && s.navState === 'OFF_ROUTE') return ['bad', 'Keluar rute'];
-  if (w.navigating) return ['ok', 'Di perjalanan'];
+  if (w.offline) return ['bad', 'Phone offline'];
+  if (w.navigating && s.navState === 'OFF_ROUTE') return ['bad', 'Off route'];
+  if (w.navigating) return ['ok', 'On the way'];
   if (w.lastHeartbeat) return ['ok', 'Online'];
-  return ['idle', 'Belum ada kabar'];
+  return ['idle', 'No word yet'];
 }
 
 function activity(w) {
   const s = w.status || {};
-  if (w.navigating && s.navState === 'OFF_ROUTE') return 'Keluar rute' + (s.routeName ? ` menuju ${s.routeName}` : '');
-  if (w.navigating) return 'Menuju ' + (s.routeName || 'tujuan');
-  if (s.navState === 'ARRIVED') return 'Sudah sampai' + (s.routeName ? ` di ${s.routeName}` : '');
-  return 'Tidak sedang berjalan';
+  if (w.navigating && s.navState === 'OFF_ROUTE') return 'Off route' + (s.routeName ? ` to ${s.routeName}` : '');
+  if (w.navigating) return 'Heading to ' + (s.routeName || 'destination');
+  if (s.navState === 'ARRIVED') return 'Arrived' + (s.routeName ? ` at ${s.routeName}` : '');
+  return 'Not walking';
 }
 
 function eventLine(e, withDate) {
   const cls = ALARMS.has(e.type) ? 'bad' : GOOD.has(e.type) ? 'ok' : '';
   const tail = e.ackedAt
-    ? `<div class="seen">Dilihat oleh ${esc(e.ackedBy)} ${ago(e.ackedAt)}</div>`
-    : ALARMS.has(e.type) ? `<button class="inline" data-ack="${e.id}">Tandai dilihat</button>` : '';
+    ? `<div class="seen">Seen by ${esc(e.ackedBy)} ${ago(e.ackedAt)}</div>`
+    : ALARMS.has(e.type) ? `<button class="inline" data-ack="${e.id}">Mark as seen</button>` : '';
   return `<div class="ev"><div class="row"><span class="pill ${cls}">${esc(LABELS[e.type] || e.type)}</span>
     <span class="muted small">${withDate ? when(e.occurredAt) : time(e.occurredAt)}</span></div>
     ${e.message ? `<div>${esc(e.message)}</div>` : ''}${tail}</div>`;
@@ -577,12 +577,12 @@ function tripItem(w, t, ongoing) {
   const expanded = openTrips.has(key);
   const mins = t.end ? Math.max(1, Math.round((t.end - t.start) / 60_000)) : null;
   const alarms = t.events.filter((e) => ALARMS.has(e.type)).length;
-  const [cls, text] = ongoing ? ['go', 'Berjalan'] : t.outcome === 'ARRIVED' ? ['ok', 'Sampai'] : t.outcome === 'NAV_STOP' ? ['warn', 'Dihentikan'] : ['', 'Tanpa akhir'];
+  const [cls, text] = ongoing ? ['go', 'Walking'] : t.outcome === 'ARRIVED' ? ['ok', 'Arrived'] : t.outcome === 'NAV_STOP' ? ['warn', 'Stopped'] : ['', 'No end'];
   return `<div class="item trip" data-trip="${key}" role="button" tabindex="0" aria-expanded="${expanded}">
     <div class="row">${icon('pin', 'i pin')}
-      <div class="grow"><div class="route">${esc(t.route || 'Perjalanan')}</div>
-        <div class="muted small">${stamp(t.start)}${t.end ? ` – ${time(t.end)}` : ''}${mins ? ` (${mins} mnt)` : ''}</div>
-        ${alarms ? `<div class="small" style="color:var(--bad);font-weight:600">${alarms} alarm</div>` : ''}</div>
+      <div class="grow"><div class="route">${esc(t.route || 'Trip')}</div>
+        <div class="muted small">${stamp(t.start)}${t.end ? ` – ${time(t.end)}` : ''}${mins ? ` (${mins} min)` : ''}</div>
+        ${alarms ? `<div class="small" style="color:var(--bad);font-weight:600">${alarms} ${alarms === 1 ? 'alarm' : 'alarms'}</div>` : ''}</div>
       <span class="pill ${cls}">${text}</span></div>
     ${expanded ? `<div class="more">${t.events.map((e) => eventLine(e, false)).join('')}</div>` : ''}</div>`;
 }
@@ -594,8 +594,8 @@ function alertItem(e) {
     <div class="body"><b>${esc(LABELS[e.type] || e.type)}</b>
       <div class="muted small">${stamp(e.occurredAt)}</div>
       ${e.message ? `<div style="margin-top:4px">${esc(e.message)}</div>` : ''}
-      ${e.ackedAt ? `<div class="seen">Dilihat oleh ${esc(e.ackedBy)} ${ago(e.ackedAt)}</div>`
-        : open ? `<button class="inline" data-ack="${e.id}">Tandai dilihat</button>` : ''}</div></div>`;
+      ${e.ackedAt ? `<div class="seen">Seen by ${esc(e.ackedBy)} ${ago(e.ackedAt)}</div>`
+        : open ? `<button class="inline" data-ack="${e.id}">Mark as seen</button>` : ''}</div></div>`;
 }
 
 function renderChild(w) {
@@ -604,27 +604,27 @@ function renderChild(w) {
   const [lookCls, lookText] = look(w);
   c.head.innerHTML = `<div class="row"><div class="avatar" aria-hidden="true">${esc((w.name || '?').trim()[0]?.toUpperCase() || '?')}</div>
     <div class="grow"><h2 class="name">${esc(w.name)}</h2><span class="dot ${lookCls}" role="status">${lookText}</span>
-      <div class="muted small">${w.lastHeartbeat ? `Kabar terakhir ${ago(w.lastHeartbeat)}` : 'Belum ada kabar'}${w.offline ? ' · peta menunjukkan lokasi terakhir' : ''}</div></div></div>`;
+      <div class="muted small">${w.lastHeartbeat ? `Last heard ${ago(w.lastHeartbeat)}` : 'No word yet'}${w.offline ? ' · map shows last known location' : ''}</div></div></div>`;
   drawMap(w, c);
 
-  const sleeve = s.sleeveConnected === true ? '<span class="dot ok">Tersambung</span>' : s.sleeveConnected === false ? '<span class="dot bad">Terputus</span>' : '—';
-  const nav = w.navigating || s.navState === 'ARRIVED' ? (NAV_STATES[s.navState] || '—') : 'Tidak jalan';
+  const sleeve = s.sleeveConnected === true ? '<span class="dot ok">Connected</span>' : s.sleeveConnected === false ? '<span class="dot bad">Disconnected</span>' : '—';
+  const nav = w.navigating || s.navState === 'ARRIVED' ? (NAV_STATES[s.navState] || '—') : 'Not walking';
   const battery = s.batteryPct;
   const next = w.navigating && s.nextPoint
-    ? `Titik ${s.nextPoint} dari ${s.totalPoints ?? '?'}${s.distanceM != null ? ` · ${Math.round(s.distanceM)} m lagi` : ''}` : '';
-  const obstacle = w.navigating && s.obstacleCm != null ? (s.obstacleCm >= 999 ? 'Rintangan: kosong' : `Rintangan: ${s.obstacleCm} cm`) : '';
+    ? `Point ${s.nextPoint} of ${s.totalPoints ?? '?'}${s.distanceM != null ? ` · ${Math.round(s.distanceM)} m to go` : ''}` : '';
+  const obstacle = w.navigating && s.obstacleCm != null ? (s.obstacleCm >= 999 ? 'Obstacle: clear' : `Obstacle: ${s.obstacleCm} cm`) : '';
 
   const v = viewOf(w.id);
   const [from, to, title] = range(v);
   let list;
   if (v.tab === 'alerts') {
     const shown = w.events.filter((e) => !ROUTINE.has(e.type) && e.occurredAt >= from && e.occurredAt < to);
-    list = shown.map(alertItem).join('') || `<div class="muted" style="padding:8px">${w.events.length ? 'Tidak ada alarm atau kabar di periode ini.' : 'Belum ada alarm atau kabar.'}</div>`;
+    list = shown.map(alertItem).join('') || `<div class="muted" style="padding:8px">${w.events.length ? 'No alerts or updates in this period.' : 'No alerts or updates yet.'}</div>`;
   } else {
     const all = tripsOf(w.events);
     const shown = all.filter((t) => t.start >= from && t.start < to);
     list = shown.map((t) => tripItem(w, t, t === all[0] && !t.end && w.navigating)).join('')
-      || `<div class="muted" style="padding:8px">${all.length ? 'Tidak ada perjalanan di periode ini.' : 'Belum ada perjalanan.'}</div>`;
+      || `<div class="muted" style="padding:8px">${all.length ? 'No trips in this period.' : 'No trips yet.'}</div>`;
   }
   const unseen = w.events.filter((e) => ALARMS.has(e.type) && !e.ackedAt).length;
   const chip = (m, label) => `<button class="${v.mode === m ? 'on' : ''}" data-view="${w.id}:${m}" aria-pressed="${v.mode === m}">${v.mode === m && v.offset ? title : label}</button>`;
@@ -632,47 +632,47 @@ function renderChild(w) {
   c.info.innerHTML = `
     <div class="tiles">
       <div class="tile"><span>Sleeve</span><b>${sleeve}</b></div>
-      <div class="tile"><span>Perjalanan</span><b style="${s.navState === 'OFF_ROUTE' && w.navigating ? 'color:var(--bad)' : ''}">${esc(nav)}</b></div>
-      <div class="tile"><span>Baterai HP anak</span><b>${battery != null ? battery + '%' : '—'}</b>
+      <div class="tile"><span>Trip</span><b style="${s.navState === 'OFF_ROUTE' && w.navigating ? 'color:var(--bad)' : ''}">${esc(nav)}</b></div>
+      <div class="tile"><span>Child's phone battery</span><b>${battery != null ? battery + '%' : '—'}</b>
         ${battery != null ? `<div class="battery"><i style="width:${Math.max(0, Math.min(100, battery))}%;${battery <= 20 ? 'background:var(--bad)' : ''}"></i></div>` : ''}</div>
     </div>
     <div class="row activity"><div class="bubble">${icon('nav')}</div>
-      <div class="grow"><b>Aktivitas sekarang</b><div>${esc(activity(w))}</div>
+      <div class="grow"><b>Current activity</b><div>${esc(activity(w))}</div>
         ${next ? `<div class="muted small">${esc(next)}</div>` : ''}${obstacle ? `<div class="muted small">${obstacle}</div>` : ''}
-        ${s.simulated ? '<div class="small" style="color:var(--warn)">Mode uji: sleeve atau GPS simulasi.</div>' : ''}
-        ${w.location ? `<div class="muted small">Lokasi ${ago(w.location.at)}${w.location.acc ? `, ±${Math.round(w.location.acc)} m` : ''}</div>` : ''}</div></div>
+        ${s.simulated ? '<div class="small" style="color:var(--warn)">Test mode: simulated sleeve or GPS.</div>' : ''}
+        ${w.location ? `<div class="muted small">Location ${ago(w.location.at)}${w.location.acc ? `, ±${Math.round(w.location.acc)} m` : ''}</div>` : ''}</div></div>
     <div class="seg" role="tablist">
-      <button role="tab" class="${v.tab !== 'alerts' ? 'on' : ''}" aria-selected="${v.tab !== 'alerts'}" data-tab="${w.id}:trips">Riwayat Perjalanan</button>
-      <button role="tab" class="${v.tab === 'alerts' ? 'on' : ''}" aria-selected="${v.tab === 'alerts'}" data-tab="${w.id}:alerts">Alarm${unseen ? ` (${unseen})` : ''}</button>
+      <button role="tab" class="${v.tab !== 'alerts' ? 'on' : ''}" aria-selected="${v.tab !== 'alerts'}" data-tab="${w.id}:trips">Trip History</button>
+      <button role="tab" class="${v.tab === 'alerts' ? 'on' : ''}" aria-selected="${v.tab === 'alerts'}" data-tab="${w.id}:alerts">Alerts${unseen ? ` (${unseen})` : ''}</button>
     </div>
-    <div class="chips">${chip('all', 'Semua')}${chip('day', 'Hari ini')}${chip('week', 'Minggu ini')}</div>
-    ${v.mode !== 'all' ? `<div class="pager"><button data-step="${w.id}:-1" aria-label="Periode sebelumnya">‹</button>
-      <b>${title}</b><button data-step="${w.id}:1" aria-label="Periode berikutnya" ${v.offset >= 0 ? 'disabled' : ''}>›</button></div>` : ''}
+    <div class="chips">${chip('all', 'All')}${chip('day', 'Today')}${chip('week', 'This week')}</div>
+    ${v.mode !== 'all' ? `<div class="pager"><button data-step="${w.id}:-1" aria-label="Previous period">‹</button>
+      <b>${title}</b><button data-step="${w.id}:1" aria-label="Next period" ${v.offset >= 0 ? 'disabled' : ''}>›</button></div>` : ''}
     <div>${list}</div>`;
   return c.el;
 }
 
-// Riwayat per child: trips or alarms, for all time or one day / week at a time (offset 0 = today / this week).
+// History per child: trips or alarms, for all time or one day / week at a time (offset 0 = today / this week).
 const views = (() => { try { return JSON.parse(store.get('care.views')) || {}; } catch { return {}; } })();
 const viewOf = (id) => (views[id] ??= { mode: 'all', offset: 0, tab: 'trips' });
 const saveViews = () => store.set('care.views', JSON.stringify(views));
 const openTrips = new Set();
-const time = (t) => new Date(t).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+const time = (t) => new Date(t).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 function startOfDay(t, plusDays = 0) { const d = new Date(t); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + plusDays); return d.getTime(); }
 function dayName(t) {
   const d = startOfDay(t), today = startOfDay(Date.now());
-  if (d === today) return 'Hari ini';
-  if (d === startOfDay(Date.now(), -1)) return 'Kemarin';
-  return new Date(t).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short' });
+  if (d === today) return 'Today';
+  if (d === startOfDay(Date.now(), -1)) return 'Yesterday';
+  return new Date(t).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
 }
 /** [from, to, title] for the selected period; weeks run Monday to Sunday. */
 function range(v) {
-  if (v.mode === 'all') return [0, Infinity, 'Semua'];
+  if (v.mode === 'all') return [0, Infinity, 'All'];
   if (v.mode === 'day') { const from = startOfDay(Date.now(), v.offset); return [from, startOfDay(from, 1), dayName(from)]; }
   const monday = startOfDay(Date.now(), -((new Date().getDay() + 6) % 7) + 7 * v.offset);
   const sunday = startOfDay(monday, 6);
-  const fmt = (t) => new Date(t).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
-  return [monday, startOfDay(monday, 7), v.offset === 0 ? 'Minggu ini' : v.offset === -1 ? 'Minggu lalu' : `${fmt(monday)} – ${fmt(sunday)}`];
+  const fmt = (t) => new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  return [monday, startOfDay(monday, 7), v.offset === 0 ? 'This week' : v.offset === -1 ? 'Last week' : `${fmt(monday)} – ${fmt(sunday)}`];
 }
 
 let linking = false;
@@ -680,7 +680,7 @@ function render() {
   const linked = !!token;
   $('top').classList.toggle('hero', !linked);
   $('tag').hidden = linked;
-  $('who').textContent = linked ? (me ? `Masuk sebagai ${me}` : '') : 'Lokasi dan alarm anak di perangkat ini selama halaman terbuka.';
+  $('who').textContent = linked ? (me ? `Signed in as ${me}` : '') : "The child's location and alarms on this device while the page is open.";
   $('link').hidden = linked && !linking;
   $('cancelLink').hidden = !linked;
   $('status').hidden = $('another').hidden = $('signout').hidden = $('bell').hidden = !linked;
@@ -688,17 +688,17 @@ function render() {
   $('relay').textContent = location.host;
   const unseen = [...children.values()].reduce((n, w) => n + w.events.filter((e) => ALARMS.has(e.type) && !e.ackedAt).length, 0);
   $('bellCount').hidden = !unseen; $('bellCount').textContent = unseen;
-  $('bell').setAttribute('aria-label', unseen ? `${unseen} alarm belum dilihat` : 'Alarm');
+  $('bell').setAttribute('aria-label', unseen ? `${unseen} unseen alerts` : 'Alerts');
   const caps = [];
-  if (!('Notification' in window) || !window.isSecureContext) caps.push('notifikasi tidak tersedia lewat http biasa');
-  else if (Notification.permission !== 'granted') caps.push('notifikasi mati');
-  if (!('wakeLock' in navigator)) caps.push('layar bisa mati sendiri');
-  $('caps').textContent = caps.length ? `Di browser ini: ${caps.join(', ')}. Biarkan halaman terbuka dan layar menyala.` : '';
+  if (!('Notification' in window) || !window.isSecureContext) caps.push('notifications are not available over plain http');
+  else if (Notification.permission !== 'granted') caps.push('notifications are off');
+  if (!('wakeLock' in navigator)) caps.push('the screen may turn off by itself');
+  $('caps').textContent = caps.length ? `In this browser: ${caps.join(', ')}. Keep the page open and the screen on.` : '';
   const box = $('children');
   for (const [id, c] of cards) if (!children.has(id)) { c.map?.remove(); c.el.remove(); cards.delete(id); }
   $('empty')?.remove();
   if (!linked) return;
-  if (!children.size) { box.insertAdjacentHTML('beforeend', '<div class="card muted" id="empty">Belum mengikuti siapa pun.</div>'); return; }
+  if (!children.size) { box.insertAdjacentHTML('beforeend', '<div class="card muted" id="empty">Not following anyone yet.</div>'); return; }
   for (const w of children.values()) {
     const el = cardFor(w).el;
     if (!el.isConnected) box.appendChild(el); // in the page before Leaflet measures the map
@@ -717,20 +717,20 @@ $('linkForm').addEventListener('submit', async (ev) => {
   ev.preventDefault();
   const msg = $('linkMsg');
   $('linkBtn').disabled = true;
-  msg.className = 'msg'; msg.textContent = 'Menghubungkan…';
+  msg.className = 'msg'; msg.textContent = 'Linking…';
   enableSound(); // the tap counts as the gesture that lets the page ring later
   try {
     const name = $('name').value.trim();
     const r = await api('POST', '/v1/link', { code: $('code').value, name }, token);
     if (r.token) { token = r.token; store.set('care.token', token); me = name; store.set('care.name', me); }
-    msg.className = 'msg ok'; msg.textContent = `Terhubung ke ${r.child.name}.`;
+    msg.className = 'msg ok'; msg.textContent = `Linked to ${r.child.name}.`;
     $('code').value = '';
     linking = false;
     await loadDashboard();
     if (!streamCtrl || streamCtrl.signal.aborted) stream();
   } catch (err) {
     msg.className = 'msg bad';
-    msg.textContent = err.status === 404 ? 'Kode salah atau sudah kedaluwarsa. Minta kode baru.' : `Gagal menghubungkan: ${err.message}`;
+    msg.textContent = err.status === 404 ? 'Wrong or expired code. Ask for a new one.' : `Could not link: ${err.message}`;
   }
   checkForm();
 });
@@ -746,7 +746,7 @@ function signOut(reason = '') {
 
 $('another').addEventListener('click', () => { linking = true; $('linkMsg').textContent = ''; render(); $('code').focus(); });
 $('cancelLink').addEventListener('click', () => { linking = false; render(); });
-$('signout').addEventListener('click', () => { if (confirm('Berhenti menerima alarm di browser ini?')) signOut(); });
+$('signout').addEventListener('click', () => { if (confirm('Stop receiving alarms in this browser?')) signOut(); });
 $('soundBtn').addEventListener('click', enableSound);
 $('ackBtn').addEventListener('click', () => ringing[0] && acknowledge(ringing[0].id, $('ackBtn')));
 $('children').addEventListener('click', (e) => {
@@ -777,7 +777,7 @@ $('bell').addEventListener('click', () => {
 // Any tap on the page also unlocks audio, so a reload followed by a tap is enough.
 document.addEventListener('pointerdown', () => { if (token && !siren.ready) enableSound(); }, { once: false });
 
-setInterval(() => { if (token && !ringing.length) render(); }, 5_000); // keep "12 dtk lalu" fresh
+setInterval(() => { if (token && !ringing.length) render(); }, 5_000); // keep "12 sec ago" fresh
 window.addEventListener('DOMContentLoaded', () => { render(); if (token) stream(); });
 </script>
 </body>

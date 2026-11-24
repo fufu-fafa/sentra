@@ -108,7 +108,7 @@ fun SectionLabel(text: String, modifier: Modifier = Modifier, icon: ImageVector?
     }
 }
 
-/** Small rounded label, e.g. "Tersambung" or "Keluar rute". */
+/** Small rounded label, e.g. "Connected" or "Off route". */
 @Composable
 fun Pill(text: String, fg: Color, bg: Color, modifier: Modifier = Modifier, dot: Boolean = false) {
     Row(
@@ -125,7 +125,7 @@ fun Pill(text: String, fg: Color, bg: Color, modifier: Modifier = Modifier, dot:
     }
 }
 
-/** A coloured dot and a word, like "● Tersambung". */
+/** A coloured dot and a word, like "● Connected". */
 @Composable
 fun StatusDot(text: String, color: Color, modifier: Modifier = Modifier) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
@@ -156,7 +156,7 @@ fun TopBar(title: String, onBack: (() -> Unit)?, action: (@Composable () -> Unit
     Box(Modifier.statusBarsPadding().fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 4.dp)) {
         if (onBack != null) {
             IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) {
-                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Kembali", tint = Tokens.Text)
+                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back", tint = Tokens.Text)
             }
         }
         Text(
@@ -169,7 +169,7 @@ fun TopBar(title: String, onBack: (() -> Unit)?, action: (@Composable () -> Unit
     }
 }
 
-/** The big rounded gradient button: Mulai Navigasi, Mulai Perjalanan, Selesai. */
+/** The big rounded gradient button: Start Navigation, Start Trip, Done. */
 @Composable
 fun PrimaryButton(
     text: String,
@@ -402,7 +402,7 @@ fun SentraLogo(markSize: Dp = 120.dp, care: Boolean = false, tagline: Boolean = 
         if (tagline) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    if (care) "Selalu di sisi mereka" else "Navigasi dengan Percaya Diri",
+                    if (care) "Always by their side" else "Navigate with Confidence",
                     style = MaterialTheme.typography.bodyLarge,
                     color = if (care) Tokens.Pink else Tokens.Brand,
                     fontWeight = FontWeight.Medium,

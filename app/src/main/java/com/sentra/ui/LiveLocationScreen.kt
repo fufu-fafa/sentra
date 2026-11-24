@@ -73,7 +73,7 @@ import com.sentra.ui.theme.Tokens
 import java.util.Locale
 import kotlin.math.roundToInt
 
-/** Lokasi Live (and the Peta tab): where this phone is, the route being walked, and time and distance left. */
+/** Live Location (and the Map tab): where this phone is, the route being walked, and time and distance left. */
 @Composable
 fun LiveLocationScreen(vm: AppViewModel, onBack: (() -> Unit)?, onResumeNav: () -> Unit) {
     val fix by vm.fix.collectAsState()
@@ -89,7 +89,7 @@ fun LiveLocationScreen(vm: AppViewModel, onBack: (() -> Unit)?, onResumeNav: () 
     }
 
     Column(Modifier.fillMaxSize().then(if (onBack != null) Modifier.navigationBarsPadding() else Modifier)) {
-        TopBar("Lokasi Live", onBack)
+        TopBar("Live Location", onBack)
         Box(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp).clip(RoundedCornerShape(24.dp))) {
             OsmMap(
                 MapContent(
@@ -106,7 +106,7 @@ fun LiveLocationScreen(vm: AppViewModel, onBack: (() -> Unit)?, onResumeNav: () 
                     onClick = { follow = true },
                     containerColor = Tokens.Card, contentColor = Tokens.Blue,
                     modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp),
-                ) { Icon(Icons.Rounded.MyLocation, contentDescription = "Ke posisi saya") }
+                ) { Icon(Icons.Rounded.MyLocation, contentDescription = "Go to my position") }
             }
         }
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -115,11 +115,11 @@ fun LiveLocationScreen(vm: AppViewModel, onBack: (() -> Unit)?, onResumeNav: () 
                     Icon(Icons.Rounded.LocationOn, null, tint = Tokens.Pink, modifier = Modifier.size(28.dp))
                     Spacer(Modifier.width(10.dp))
                     Column {
-                        Text("Lokasi Saat Ini", style = MaterialTheme.typography.titleSmall, color = Tokens.Text)
+                        Text("Current Location", style = MaterialTheme.typography.titleSmall, color = Tokens.Text)
                         val f = fix
                         Text(
                             if (f == null) {
-                                if (settings.simulatedGps && !nav.active) "GPS simulasi berjalan saat navigasi" else "Menunggu GPS…"
+                                if (settings.simulatedGps && !nav.active) "Simulated GPS runs during navigation" else "Waiting for GPS…"
                             } else String.format(Locale.US, "%.5f, %.5f", f.lat, f.lon) + " · ±${f.accuracyM.roundToInt()} m",
                             style = MaterialTheme.typography.bodyMedium, color = AppTheme.extra.muted,
                         )
@@ -130,12 +130,12 @@ fun LiveLocationScreen(vm: AppViewModel, onBack: (() -> Unit)?, onResumeNav: () 
                 val left = remainingM(nav, route)
                 Card(padding = 14.dp) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Mini(Icons.Rounded.Schedule, "Perkiraan", left?.let(::etaText) ?: "—", Modifier.weight(1f))
-                        Mini(Icons.Rounded.Straighten, "Jarak", left?.let(::distanceText) ?: "—", Modifier.weight(1f))
+                        Mini(Icons.Rounded.Schedule, "ETA", left?.let(::etaText) ?: "—", Modifier.weight(1f))
+                        Mini(Icons.Rounded.Straighten, "Distance", left?.let(::distanceText) ?: "—", Modifier.weight(1f))
                     }
                 }
                 SoftButton(
-                    "Menuju ${route?.name ?: "tujuan"}", onResumeNav, Modifier.fillMaxWidth(),
+                    "Heading to ${route?.name ?: "destination"}", onResumeNav, Modifier.fillMaxWidth(),
                     icon = Icons.AutoMirrored.Rounded.DirectionsWalk,
                 )
             }
@@ -155,9 +155,9 @@ private fun Mini(icon: androidx.compose.ui.graphics.vector.ImageVector, label: S
     }
 }
 
-// --- Status Perangkat ----------------------------------------------------------------------------
+// --- Device Status -------------------------------------------------------------------------------
 
-/** Status: the sleeve, its sensor and replies, and the way into Mode Demo. */
+/** Status: the sleeve, its sensor and replies, and the way into Demo Mode. */
 @Composable
 fun DeviceStatusScreen(vm: AppViewModel, enableBluetooth: () -> Unit, openDemo: () -> Unit) {
     val settings by vm.settings.collectAsState()
@@ -170,7 +170,7 @@ fun DeviceStatusScreen(vm: AppViewModel, enableBluetooth: () -> Unit, openDemo: 
     val connected = link == LinkState.CONNECTED
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        ScreenTitle("Status Perangkat")
+        ScreenTitle("Device Status")
         Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             SleeveArt(connected, Modifier.size(190.dp))
             Column(
@@ -179,39 +179,39 @@ fun DeviceStatusScreen(vm: AppViewModel, enableBluetooth: () -> Unit, openDemo: 
             ) {
                 Text(
                     when (link) {
-                        LinkState.CONNECTED -> "Tersambung!"
-                        LinkState.CONNECTING -> "Mencari sleeve…"
-                        LinkState.DISCONNECTED -> "Belum tersambung"
+                        LinkState.CONNECTED -> "Connected!"
+                        LinkState.CONNECTING -> "Looking for sleeve…"
+                        LinkState.DISCONNECTED -> "Not connected"
                     },
                     fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Tokens.Text,
                 )
                 Text(
-                    if (settings.simulatedSleeve) "Sleeve simulasi" else settings.deviceName ?: "Smart Haptic Sleeve",
+                    if (settings.simulatedSleeve) "Simulated sleeve" else settings.deviceName ?: "Smart Haptic Sleeve",
                     style = MaterialTheme.typography.bodyLarge, color = AppTheme.extra.muted,
                 )
             }
             Card {
-                StatusRow("Jarak rintangan", when {
+                StatusRow("Obstacle distance", when {
                     !connected || obstacle == null -> "—"
-                    obstacle!! >= SentraProtocol.NO_OBSTACLE_CM -> "Kosong"
+                    obstacle!! >= SentraProtocol.NO_OBSTACLE_CM -> "Clear"
                     else -> "$obstacle cm"
                 }, obstacleColor(obstacle))
-                StatusRow("Getaran", if (intensity == Intensity.LOW) "Lemah" else "Kuat")
-                StatusRow("Balasan terakhir", ack?.let { "ACK:${it.command}" + (it.roundTripMs?.let { ms -> " · $ms ms" } ?: "") } ?: "—", mono = true)
+                StatusRow("Vibration", if (intensity == Intensity.LOW) "Weak" else "Strong")
+                StatusRow("Last reply", ack?.let { "ACK:${it.command}" + (it.roundTripMs?.let { ms -> " · $ms ms" } ?: "") } ?: "—", mono = true)
                 Spacer(Modifier.height(4.dp))
                 RelayLine(vm)
             }
             if (settings.simulatedSleeve) {
-                Text("Sleeve simulasi menyala. Matikan di Setelan → Uji tanpa alat.", color = Tokens.Warn, style = MaterialTheme.typography.bodySmall)
+                Text("Simulated sleeve is on. Turn it off in Settings → Test without hardware.", color = Tokens.Warn, style = MaterialTheme.typography.bodySmall)
             } else if (connected) {
-                SoftButton("Putuskan", { confirmForget = true }, Modifier.fillMaxWidth(), icon = Icons.Rounded.LinkOff)
+                SoftButton("Disconnect", { confirmForget = true }, Modifier.fillMaxWidth(), icon = Icons.Rounded.LinkOff)
             } else {
                 val searching = scan == ScanState.Searching
-                PrimaryButton(if (searching) "Mencari…" else "Sambungkan", vm::connectSleeve, enabled = !searching, icon = Icons.Rounded.Bluetooth)
-                if (scan is ScanState.Failed) SoftButton("Nyalakan Bluetooth", enableBluetooth, Modifier.fillMaxWidth())
+                PrimaryButton(if (searching) "Searching…" else "Connect", vm::connectSleeve, enabled = !searching, icon = Icons.Rounded.Bluetooth)
+                if (scan is ScanState.Failed) SoftButton("Turn on Bluetooth", enableBluetooth, Modifier.fillMaxWidth())
             }
             ListRow(
-                "Mode Demo", "Coba getaran tanpa berjalan, untuk booth 1×1 m",
+                "Demo Mode", "Try the vibrations without walking, for a 1×1 m booth",
                 Icons.Rounded.SportsEsports, tint = Tokens.Accent, iconBackground = Tokens.AccentSoft,
                 onClick = openDemo,
             )
@@ -223,10 +223,10 @@ fun DeviceStatusScreen(vm: AppViewModel, enableBluetooth: () -> Unit, openDemo: 
         AlertDialog(
             onDismissRequest = { confirmForget = false },
             containerColor = Tokens.Card,
-            title = { Text("Putuskan sleeve?") },
-            text = { Text("HP ini berhenti tersambung sampai Anda menekan Sambungkan lagi.", color = AppTheme.extra.muted) },
-            confirmButton = { TextButton(onClick = { vm.forgetSleeve(); confirmForget = false }) { Text("Putuskan", color = Tokens.Wrong) } },
-            dismissButton = { TextButton(onClick = { confirmForget = false }) { Text("Batal") } },
+            title = { Text("Disconnect sleeve?") },
+            text = { Text("This phone stays disconnected until you tap Connect again.", color = AppTheme.extra.muted) },
+            confirmButton = { TextButton(onClick = { vm.forgetSleeve(); confirmForget = false }) { Text("Disconnect", color = Tokens.Wrong) } },
+            dismissButton = { TextButton(onClick = { confirmForget = false }) { Text("Cancel") } },
         )
     }
 }

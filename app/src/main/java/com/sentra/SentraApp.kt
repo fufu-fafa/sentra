@@ -12,10 +12,10 @@ import org.osmdroid.config.Configuration
 import java.io.File
 
 class SentraApp : Application() {
-    /** Mode Anak. */
+    /** Child mode. */
     lateinit var child: ChildManager
         private set
-    /** Mode Orang tua (SENTRA Care). */
+    /** Parent mode (SENTRA Care). */
     lateinit var care: CareManager
         private set
 

@@ -6,7 +6,7 @@ import android.util.Log
 import java.util.Locale
 
 /**
- * Short voice prompts in Bahasa Indonesia (§9.7: voice is only a complement and kept brief, so it
+ * Short voice prompts in English (§9.7: voice is only a complement and kept brief, so it
  * doesn't cover the sounds around the child). A new prompt replaces one still being spoken.
  */
 class Speaker(context: Context) {
@@ -18,9 +18,9 @@ class Speaker(context: Context) {
     }
 
     private fun onReady() {
-        val result = tts.setLanguage(Locale("id", "ID"))
+        val result = tts.setLanguage(Locale.US)
         if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-            Log.w(TAG, "No Indonesian voice installed; using the phone's default voice")
+            Log.w(TAG, "No English voice installed; using the phone's default voice")
         }
         tts.setSpeechRate(1.0f)
         ready = true

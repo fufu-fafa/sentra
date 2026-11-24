@@ -7,7 +7,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** Riwayat Perjalanan on the parents' phone, built from the event feed. */
+/** Trip History on the parents' phone, built from the event feed. */
 class CareTripsTest {
     private var nextId = 1L
     private fun ev(type: CareEventType, at: Long, message: String = "") =
@@ -16,15 +16,15 @@ class CareTripsTest {
     @Test fun startToArrivedIsOneTripWithItsRouteName() {
         val trips = careTrips(
             listOf(
-                ev(CareEventType.NAV_START, 100, "Mulai jalan di rute Rumah ke sekolah, 5 titik."),
-                ev(CareEventType.BELOK_KIRI, 150),
-                ev(CareEventType.KELUAR_RUTE, 160),
+                ev(CareEventType.NAV_START, 100, "Started walking on route Home to school, 5 points."),
+                ev(CareEventType.TURN_LEFT, 150),
+                ev(CareEventType.OFF_ROUTE, 160),
                 ev(CareEventType.ARRIVED, 200),
             ).reversed() // the feed comes newest first
         )
         assertEquals(1, trips.size)
         val t = trips[0]
-        assertEquals("Rumah ke sekolah", t.routeName)
+        assertEquals("Home to school", t.routeName)
         assertEquals(100L, t.startedAt)
         assertEquals(200L, t.endedAt)
         assertEquals(CareEventType.ARRIVED, t.outcome)
@@ -36,22 +36,22 @@ class CareTripsTest {
         val trips = careTrips(
             listOf(
                 ev(CareEventType.TEST, 50),
-                ev(CareEventType.NAV_START, 100, "Mulai jalan, 3 titik."),
+                ev(CareEventType.NAV_START, 100, "Started walking, 3 points."),
                 ev(CareEventType.NAV_STOP, 120),
-                ev(CareEventType.NAV_START, 300, "Mulai jalan di rute Taman, 2 titik."),
-                ev(CareEventType.BELOK_KANAN, 310),
+                ev(CareEventType.NAV_START, 300, "Started walking on route Park, 2 points."),
+                ev(CareEventType.TURN_RIGHT, 310),
             )
         )
         assertEquals(listOf(300L, 100L), trips.map { it.startedAt })
         assertNull(trips[0].endedAt)
-        assertEquals("Taman", trips[0].routeName)
+        assertEquals("Park", trips[0].routeName)
         assertNull(trips[1].routeName)
         assertEquals(CareEventType.NAV_STOP, trips[1].outcome)
     }
 
     @Test fun routeNameWithoutPointCount() {
-        // server_relay/fake-child.mjs words it without ", N titik".
-        val trips = careTrips(listOf(ev(CareEventType.NAV_START, 1, "Mulai jalan di rute Keliling Gedung Sate.")))
-        assertEquals("Keliling Gedung Sate", trips[0].routeName)
+        // server_relay/fake-child.mjs words it without ", N points".
+        val trips = careTrips(listOf(ev(CareEventType.NAV_START, 1, "Started walking on route Around Gedung Sate.")))
+        assertEquals("Around Gedung Sate", trips[0].routeName)
     }
 }

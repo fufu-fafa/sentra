@@ -13,9 +13,9 @@ import kotlinx.coroutines.flow.map
 
 /** Which side of SENTRA this phone is. One APK, two modes. */
 enum class AppMode {
-    /** Mode Anak: the child's phone, connected to the sleeve. */
+    /** Child mode: the child's phone, connected to the sleeve. */
     CHILD,
-    /** Mode Orang tua: SENTRA Care. */
+    /** Parent mode: SENTRA Care. */
     PARENT,
 }
 
@@ -28,7 +28,7 @@ data class AppSettings(
     /** Connect only to a sleeve with exactly this name (e.g. SENTRA-01); blank = any SENTRA sleeve. */
     val sleeveName: String = "",
     /** What the parents see. An alias, not the child's real name. */
-    val childName: String = "Anak",
+    val childName: String = "Child",
     /** The relay, e.g. https://relay.example.id; blank = no relay, everything stays on this phone. */
     val relayUrl: String = "",
     /** The relay's own id, so a new address for the same relay keeps this phone's links. */
@@ -42,7 +42,7 @@ data class AppSettings(
     val acksSince: Long = 0,
     /** Last parent stream event id, so a reconnect replays what was missed. */
     val lastStreamEventId: Long = 0,
-    /** The route chosen on Beranda. */
+    /** The route chosen on Home. */
     val selectedRouteId: Long? = null,
     /** Test without hardware: a pretend sleeve instead of Bluetooth. */
     val simulatedSleeve: Boolean = false,
@@ -81,7 +81,7 @@ class SettingsRepository(private val context: Context) {
             deviceAddress = p[Keys.address],
             deviceName = p[Keys.name],
             sleeveName = p[Keys.sleeveName] ?: "",
-            childName = p[Keys.childName] ?: "Anak",
+            childName = p[Keys.childName] ?: "Child",
             relayUrl = p[Keys.relayUrl] ?: defaultRelayUrl,
             relayId = p[Keys.relayId],
             childToken = p[Keys.childToken],
@@ -103,7 +103,7 @@ class SettingsRepository(private val context: Context) {
     }
 
     suspend fun setSleeveName(name: String) = edit { it[Keys.sleeveName] = name.trim() }
-    suspend fun setChildName(name: String) = edit { it[Keys.childName] = name.trim().ifEmpty { "Anak" } }
+    suspend fun setChildName(name: String) = edit { it[Keys.childName] = name.trim().ifEmpty { "Child" } }
     suspend fun setSelectedRoute(id: Long?) = edit { if (id == null) it.remove(Keys.selectedRoute) else it[Keys.selectedRoute] = id }
     suspend fun setSimulatedSleeve(on: Boolean) = edit { it[Keys.simulatedSleeve] = on }
     suspend fun setSimulatedGps(on: Boolean) = edit { it[Keys.simulatedGps] = on }

@@ -28,9 +28,9 @@ constexpr int NO_OBSTACLE = 999;      // D:999 = nothing in range
 // 2. TUNING (Tabel 17)
 // ============================================================================
 // --- Obstacle zones (cm) ---
-constexpr int DIST_FAR    = 150;  // < 150 cm: JAUH   (slow taps)
-constexpr int DIST_NEAR   = 100;  // < 100 cm: DEKAT  (fast taps)
-constexpr int DIST_DANGER = 50;   // <  50 cm: BAHAYA (continuous, navigation held back)
+constexpr int DIST_FAR    = 150;  // < 150 cm: FAR    (slow taps)
+constexpr int DIST_NEAR   = 100;  // < 100 cm: NEAR   (fast taps)
+constexpr int DIST_DANGER = 50;   // <  50 cm: DANGER (continuous, navigation held back)
 constexpr int HYSTERESIS  = 8;    // cm to go past a limit before leaving a zone
 
 // --- Sensor ---

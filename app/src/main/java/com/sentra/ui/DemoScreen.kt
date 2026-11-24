@@ -38,7 +38,7 @@ import com.sentra.ui.theme.Mono
 import com.sentra.ui.theme.Tokens
 
 /**
- * Mode Demo (§9.6), for the 1×1 m booth where GPS doesn't work: every command by hand so a judge
+ * Demo Mode (§9.6), for the 1×1 m booth where GPS doesn't work: every command by hand so a judge
  * can wear the sleeve and feel it, an automatic route simulation, the live obstacle distance, and
  * the intensity switch.
  */
@@ -58,29 +58,29 @@ fun DemoScreen(vm: AppViewModel, onBack: () -> Unit) {
     val manual = free && step == null
 
     Column(Modifier.fillMaxSize().navigationBarsPadding().verticalScroll(rememberScrollState())) {
-        TopBar("Mode Demo", onBack)
+        TopBar("Demo Mode", onBack)
         Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             when {
-                !connected -> Text("Sambungkan sleeve di Beranda dulu.", color = Tokens.Warn)
-                nav.active -> Text("Navigasi sedang berjalan.", color = Tokens.Warn)
+                !connected -> Text("Connect the sleeve on Home first.", color = Tokens.Warn)
+                nav.active -> Text("Navigation is running.", color = Tokens.Warn)
             }
             Card {
                 ObstacleReadout(obstacle)
-                Text("Dekatkan tangan ke sensor.", color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall)
+                Text("Bring your hand close to the sensor.", color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall)
             }
             Card {
-                SectionLabel("Perintah", icon = Icons.Rounded.Vibration)
-                CommandRow(vm, manual, SleeveCommand.LEFT to "Kiri", SleeveCommand.RIGHT to "Kanan")
-                CommandRow(vm, manual, SleeveCommand.FORWARD to "Lurus", SleeveCommand.STOP to "Stop")
-                CommandRow(vm, manual, SleeveCommand.ARRIVED to "Tiba", SleeveCommand.TEST to "Tes")
+                SectionLabel("Commands", icon = Icons.Rounded.Vibration)
+                CommandRow(vm, manual, SleeveCommand.LEFT to "Left", SleeveCommand.RIGHT to "Right")
+                CommandRow(vm, manual, SleeveCommand.FORWARD to "Straight", SleeveCommand.STOP to "Stop")
+                CommandRow(vm, manual, SleeveCommand.ARRIVED to "Arrived", SleeveCommand.TEST to "Test")
                 OutlinedButton(onClick = { vm.demo(SleeveCommand.IDLE) }, enabled = manual, modifier = Modifier.fillMaxWidth()) {
-                    Text("Diam")
+                    Text("Idle")
                 }
             }
             Card {
-                SectionLabel("Getaran", icon = Icons.Rounded.Tune)
+                SectionLabel("Vibration", icon = Icons.Rounded.Tune)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(Intensity.LOW to "Lemah", Intensity.HIGH to "Kuat").forEach { (level, text) ->
+                    listOf(Intensity.LOW to "Weak", Intensity.HIGH to "Strong").forEach { (level, text) ->
                         FilterChip(
                             selected = intensity == level,
                             onClick = { vm.demo(if (level == Intensity.LOW) SleeveCommand.LOW else SleeveCommand.HIGH) },
@@ -95,36 +95,36 @@ fun DemoScreen(vm: AppViewModel, onBack: () -> Unit) {
                 }
             }
             Card {
-                SectionLabel("Simulasi rute", icon = Icons.Rounded.Route)
-                Text("Lurus, kiri, lurus, kanan, lurus, tiba; tiap 4 detik.", color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall)
+                SectionLabel("Route simulation", icon = Icons.Rounded.Route)
+                Text("Straight, left, straight, right, straight, arrived; every 4 seconds.", color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.height(8.dp))
                 val current = step
                 if (current == null) {
-                    PrimaryButton("Mulai simulasi", vm::startDemo, enabled = free, icon = Icons.Rounded.PlayArrow)
+                    PrimaryButton("Start simulation", vm::startDemo, enabled = free, icon = Icons.Rounded.PlayArrow)
                 } else {
                     Text(
-                        "Langkah ${current + 1} dari ${ChildManager.DEMO_SEQUENCE.size}: ${ChildManager.DEMO_SEQUENCE[current].label}",
+                        "Step ${current + 1} of ${ChildManager.DEMO_SEQUENCE.size}: ${ChildManager.DEMO_SEQUENCE[current].label}",
                         style = MaterialTheme.typography.titleMedium,
                     )
-                    OutlinedButton(onClick = vm::stopDemo, modifier = Modifier.fillMaxWidth()) { Text("Hentikan") }
+                    OutlinedButton(onClick = vm::stopDemo, modifier = Modifier.fillMaxWidth()) { Text("Stop") }
                 }
             }
             Card {
-                SectionLabel("Balasan sleeve", icon = Icons.Rounded.Sensors)
+                SectionLabel("Sleeve replies", icon = Icons.Rounded.Sensors)
                 Text(
-                    ack?.let { "ACK:${it.command}" + (it.roundTripMs?.let { ms -> " · $ms ms" } ?: "") } ?: "Belum ada.",
+                    ack?.let { "ACK:${it.command}" + (it.roundTripMs?.let { ms -> " · $ms ms" } ?: "") } ?: "None yet.",
                     fontFamily = Mono,
                 )
                 error?.let { Text("ERR:$it", color = Tokens.Wrong, fontFamily = Mono) }
             }
             if (settings.simulatedSleeve) {
                 Card {
-                    SectionLabel("Sleeve simulasi", icon = Icons.Rounded.Science)
-                    Text("Motor: " + (pattern?.let { patternText(it) } ?: "diam"))
+                    SectionLabel("Simulated sleeve", icon = Icons.Rounded.Science)
+                    Text("Motor: " + (pattern?.let { patternText(it) } ?: "idle"))
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { vm.pressFakeButton(false) }, modifier = Modifier.weight(1f)) { Text("Tekan singkat") }
-                        OutlinedButton(onClick = { vm.pressFakeButton(true) }, modifier = Modifier.weight(1f)) { Text("Tekan lama") }
+                        OutlinedButton(onClick = { vm.pressFakeButton(false) }, modifier = Modifier.weight(1f)) { Text("Short press") }
+                        OutlinedButton(onClick = { vm.pressFakeButton(true) }, modifier = Modifier.weight(1f)) { Text("Long press") }
                     }
                 }
             }

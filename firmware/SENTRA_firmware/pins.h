@@ -27,9 +27,9 @@ constexpr int PIN_TRIG = 3;    // XIAO D1 -> TRIG
 constexpr int PIN_ECHO = 4;    // XIAO D2 <- ECHO (must be 3.3 V logic)
 
 // --- Vibration motors via ULN2003A (PWM) ------------------------------------
-constexpr int PIN_MOTOR_L = 5; // XIAO D3 -> ULN2003A IN1 -> motor KIRI
-constexpr int PIN_MOTOR_C = 6; // XIAO D4 -> ULN2003A IN2 -> motor TENGAH (rintangan)
-constexpr int PIN_MOTOR_R = 7; // XIAO D5 -> ULN2003A IN3 -> motor KANAN
+constexpr int PIN_MOTOR_L = 5; // XIAO D3 -> ULN2003A IN1 -> motor LEFT
+constexpr int PIN_MOTOR_C = 6; // XIAO D4 -> ULN2003A IN2 -> motor CENTER (obstacle)
+constexpr int PIN_MOTOR_R = 7; // XIAO D5 -> ULN2003A IN3 -> motor RIGHT
 
 // --- Status LED (optional): set to -1 if there is no LED --------------------
 constexpr int PIN_LED = 8;     // XIAO D8 -> 330 ohm -> LED -> GND

@@ -7,14 +7,14 @@ of them ring, and the Android notifications and alarm channels. Part of [`com.se
 
 | File | What it does |
 |---|---|
-| `AlertRules.kt` | `CareEventType` (every relay event type with its Indonesian label, `isAlarm`, `isGood`), `CareAlert` (ALARM, RING_ONCE, NOTIFY, HISTORY) and `AlertRules`, which maps a type to a `CareAlert` and gives the alarm screen's title. Free of Android types, so it is unit tested |
-| `AlertDispatcher.kt` | Creates the notification channels (`alarm`, `arrival`, `info`, `service`) and posts them: full-screen alarm notifications, ring-once, quiet info, and the "HP anak offline" notification |
+| `AlertRules.kt` | `CareEventType` (every relay event type with its English label, `isAlarm`, `isGood`), `CareAlert` (ALARM, RING_ONCE, NOTIFY, HISTORY) and `AlertRules`, which maps a type to a `CareAlert` and gives the alarm screen's title. Free of Android types, so it is unit tested |
+| `AlertDispatcher.kt` | Creates the notification channels (`alarm`, `arrival`, `info`, `service`) and posts them: full-screen alarm notifications, ring-once, quiet info, and the "Child's phone offline" notification |
 
 ## How it works
 
 | Type | `CareAlert` |
 |---|---|
-| `KELUAR_RUTE`, `TERPUTUS`, `OFFLINE` | ALARM: full-screen [`AlarmActivity`](../care/README.md), rings until acknowledged |
+| `OFF_ROUTE`, `SLEEVE_DISCONNECTED`, `OFFLINE` | ALARM: full-screen [`AlarmActivity`](../care/README.md), rings until acknowledged |
 | `ARRIVED`, `TEST` | RING_ONCE |
 | `NAV_START` | NOTIFY |
 | everything else | HISTORY only |

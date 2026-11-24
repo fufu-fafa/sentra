@@ -51,7 +51,7 @@ fun gpsFixes(context: Context): Flow<Fix> = callbackFlow {
 /**
  * A pretend walk along a route for testing navigation, the relay and SENTRA Care without going
  * outside: one fix a second, [speedMps] apart, starting a few metres before the first point.
- * While [detour] returns true the walker leaves the route sideways, which ends in "keluar rute".
+ * While [detour] returns true the walker leaves the route sideways, which ends in "off route".
  */
 fun simulatedWalk(
     route: List<GeoPoint>,

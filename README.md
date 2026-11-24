@@ -7,9 +7,9 @@ navigation algorithm of §9.5 are kept as specified.
 
 - [`app/`](app/README.md): one APK, two modes, chosen on first launch, both in the same purple
   SENTRA design
-  - **Anak** (SENTRA): the child's phone. Connects to the sleeve, records routes, navigates with
-    vibration and voice, keeps a trip history, Mode Demo for the booth.
-  - **Orang tua** (SENTRA Care, pink): dashboard, live map, trip history and full-screen alarms.
+  - **Child** (SENTRA): the child's phone. Connects to the sleeve, records routes, navigates with
+    vibration and voice, keeps a trip history, Demo Mode for the booth.
+  - **Parent** (SENTRA Care, pink): dashboard, live map, trip history and full-screen alarms.
 - [`server_relay/`](server_relay/README.md): the server between the two.
 - [`firmware/`](firmware/README.md): Arduino firmware for the sleeve (XIAO ESP32-C3). Pins are a
   template in `firmware/SENTRA_firmware/pins.h` until the sleeve is wired.
@@ -32,7 +32,7 @@ in a queue on the child's phone and are sent when the relay can be reached.
 |---|---|
 | [`app/`](app/README.md) | Android module: build file, ProGuard rules |
 | [`app/src/`](app/src/README.md) | Source sets: manifest, debug overrides (local relay, plain HTTP) |
-| [`app/src/main/java/com/sentra/`](app/src/main/java/com/sentra/README.md) | `SentraApp`, `ChildManager` (mode Anak engine), GPS source, foreground service, voice |
+| [`app/src/main/java/com/sentra/`](app/src/main/java/com/sentra/README.md) | `SentraApp`, `ChildManager` (Child mode engine), GPS source, foreground service, voice |
 | [`…/alert/`](app/src/main/java/com/sentra/alert/README.md) | Event types and how a parent's phone reacts to each |
 | [`…/ble/`](app/src/main/java/com/sentra/ble/README.md) | BLE contract (Bab 8), GATT client, scanner, simulated sleeve |
 | [`…/care/`](app/src/main/java/com/sentra/care/README.md) | SENTRA Care: live stream, push, alarm screen, history helpers |
@@ -64,44 +64,44 @@ build; see [Push](server_relay/README.md#push-firebase-cloud-messaging-optional)
 ## Try it without a sleeve, without walking and without a server
 
 1. Start the relay on this computer: `cd server_relay && node --disable-warning=ExperimentalWarning server.mjs`.
-2. Install the debug APK on a phone on the same WiFi and choose **Anak**.
-3. **Setelan → Uji tanpa alat**: switch on **Sleeve simulasi** and **GPS simulasi**, and tap
-   **Tambah rute contoh**.
-4. **Setelan → Orang tua**: **Cari relay di WiFi ini**, then **Undang orang tua** for a 6-digit code.
-5. Open `http://<this computer>:8787/` in a browser (or a second phone in mode **Orang tua**) and
+2. Install the debug APK on a phone on the same WiFi and choose **Child**.
+3. **Settings → Test without hardware**: switch on **Simulated sleeve** and **Simulated GPS**, and tap
+   **Add sample route**.
+4. **Settings → Parents**: **Find relay on this WiFi**, then **Invite parent** for a 6-digit code.
+5. Open `http://<this computer>:8787/` in a browser (or a second phone in mode **Parent**) and
    type the code.
-6. **Beranda → Mulai Navigasi** (it starts the selected route; with none selected it opens **Rute**). The position walks along the route; the phone speaks the turns,
+6. **Home → Start Navigation** (it starts the selected route; with none selected it opens **Routes**). The position walks along the route; the phone speaks the turns,
    the simulated sleeve shows which motors would vibrate, and the marker moves on the parents' map.
-   **Simulasikan keluar rute** raises the KELUAR_RUTE alarm.
+   **Simulate going off route** raises the OFF_ROUTE alarm.
 
 The simulated sleeve behaves like the firmware as seen from the phone: ACK for every command but
 PING, `D:` every 250 ms, `BTN:` messages, and navigation that stops after 6 s without a message.
 
 ## With the real sleeve
 
-Switch **Sleeve simulasi** off and press **Sambungkan**. The app looks for a device that
+Switch **Simulated sleeve** off and press **Connect**. The app looks for a device that
 advertises the SENTRA service or a name starting with `SENTRA`, connects to the first one and
-remembers it; after that it reconnects by itself. At the competition, set **Setelan → Sleeve → Hanya sambung ke nama ini** to
+remembers it; after that it reconnects by itself. At the competition, set **Settings → Sleeve → Only connect to this name** to
 `SENTRA-01` so it ignores other sleeves in the room. Only one phone can be connected to a sleeve
 at a time, so disconnect nRF Connect first.
 
 ## Decisions beyond the design document
 
-- **Keluar rute** is sent once, and when the child is back within the limit the app says
-  "kembali ke rute" and resumes. The §9.5 blocks would send STOP on every GPS fix.
+- **Off route** is sent once, and when the child is back within the limit the app says
+  "back on route" and resumes. The §9.5 blocks would send STOP on every GPS fix.
 - The FORWARD that follows a passed point by 4 s is dropped if the next turn was announced in the
   meantime, so it cannot cancel that turn's vibration.
 - After the sleeve reconnects during a trip the app sends the current command again, because the
   firmware drops its navigation pattern on disconnect.
 - Commands are written with response, so a lost write is noticed. The time from a command to its
-  ACK is shown in Mode Demo and logged for §10.3.
+  ACK is shown in Demo Mode and logged for §10.3.
 - Locations are uploaded only while a trip runs.
 
 ## Not done yet
 
 - The sleeve firmware compiles for the XIAO ESP32-C3 (esp32 core 3.3.12) but has never run on
   one; the sleeve is not built yet.
-- Never run against the real sleeve. Mode Anak has run on one phone (Samsung SM-G990E) with the
+- Never run against the real sleeve. Child mode has run on one phone (Samsung SM-G990E) with the
   simulated sleeve and GPS; SENTRA Care has not been checked on a phone since the redesign.
 - Deployment of the relay to the VPS, and Firebase push.
 - Pairing by QR code (the 6-digit code works).

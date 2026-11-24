@@ -38,7 +38,7 @@ class SentraService : LifecycleService() {
         super.onStartCommand(intent, flags, startId)
         val types = foregroundTypes()
         try {
-            ServiceCompat.startForeground(this, AlertDispatcher.SERVICE_ID, notification("Menyiapkan…"), types)
+            ServiceCompat.startForeground(this, AlertDispatcher.SERVICE_ID, notification("Getting ready…"), types)
         } catch (e: Exception) {
             // Missing permission for every type, or a background-start restriction.
             Log.w(TAG, "Could not start in foreground", e)
@@ -93,14 +93,14 @@ class SentraService : LifecycleService() {
 
         fun statusText(link: LinkState, nav: NavSnapshot, routeName: String?): String {
             val sleeve = when (link) {
-                LinkState.CONNECTED -> "Sleeve tersambung"
-                LinkState.CONNECTING -> "Mencari sleeve…"
-                LinkState.DISCONNECTED -> "Sleeve tidak tersambung"
+                LinkState.CONNECTED -> "Sleeve connected"
+                LinkState.CONNECTING -> "Looking for sleeve…"
+                LinkState.DISCONNECTED -> "Sleeve not connected"
             }
             val trip = when (nav.state) {
-                NavState.NAVIGATING -> "Navigasi${routeName?.let { " $it" } ?: ""}: titik ${nav.targetNumber} dari ${nav.totalPoints}" +
-                    (nav.distanceM?.let { ", ${it.roundToInt()} m lagi" } ?: "")
-                NavState.OFF_ROUTE -> "KELUAR RUTE"
+                NavState.NAVIGATING -> "Navigation${routeName?.let { " $it" } ?: ""}: point ${nav.targetNumber} of ${nav.totalPoints}" +
+                    (nav.distanceM?.let { ", ${it.roundToInt()} m to go" } ?: "")
+                NavState.OFF_ROUTE -> "OFF ROUTE"
                 else -> null
             }
             return listOfNotNull(trip, sleeve).joinToString(" · ")

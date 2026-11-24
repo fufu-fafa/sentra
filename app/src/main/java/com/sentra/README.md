@@ -1,8 +1,8 @@
 # com.sentra
 
-The Kotlin source of the Android app: one APK with two modes, **Anak** (the child's phone, talks to
-the sleeve and navigates) and **Orang tua / SENTRA Care** (a parent's phone, follows the child
-through the relay). This folder holds the application wiring, the mode Anak engine, and the
+The Kotlin source of the Android app: one APK with two modes, **Child** (the child's phone, talks to
+the sleeve and navigates) and **Parent / SENTRA Care** (a parent's phone, follows the child
+through the relay). This folder holds the application wiring, the Child mode engine, and the
 packages below.
 
 ## Contents
@@ -10,10 +10,10 @@ packages below.
 | Path | What it is |
 |---|---|
 | `SentraApp.kt` | The `Application`: configures osmdroid, creates `AlertDispatcher` channels, `SettingsRepository`, the database, `ChildManager` and `CareManager`, and starts both. `Context.child` / `Context.care` give any component access to them |
-| `ChildManager.kt` | Mode Anak's engine for the life of the process: sleeve link and 2 s PING, scanning, GPS source choice, `NavEngine` and its actions, voice, trip history, Mode Demo sequence, CSV test log, and the relay loop (outbox upload, heartbeat with status, acknowledgements) |
+| `ChildManager.kt` | Child mode's engine for the life of the process: sleeve link and 2 s PING, scanning, GPS source choice, `NavEngine` and its actions, voice, trip history, Demo Mode sequence, CSV test log, and the relay loop (outbox upload, heartbeat with status, acknowledgements) |
 | `loc/LocationSource.kt` | `Fix`, `gpsFixes()` (fused location every 1 s, high accuracy) and `simulatedWalk()` (a pretend walk along a route at 3 m/s, optionally drifting off route) |
 | `service/SentraService.kt` | Foreground service (types connectedDevice and location) that keeps the sleeve link, GPS and navigation running with the screen off (§9.8); `BootReceiver` recreates the app on boot and after an update so it reconnects |
-| `voice/Speaker.kt` | Short `TextToSpeech` prompts in Bahasa Indonesia; a new prompt replaces one still being spoken (§9.7) |
+| `voice/Speaker.kt` | Short `TextToSpeech` prompts in English; a new prompt replaces one still being spoken (§9.7) |
 | [`alert/`](alert/README.md) | Event types and what a parent's phone does with each |
 | [`ble/`](ble/README.md) | BLE contract with the sleeve, GATT client, scanner, simulated sleeve |
 | [`care/`](care/README.md) | SENTRA Care: live stream, push, alarm screen, history helpers |

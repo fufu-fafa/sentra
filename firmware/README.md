@@ -42,22 +42,22 @@ arduino-cli compile --fqbn esp32:esp32:XIAO_ESP32C3:CDCOnBoot=cdc firmware/SENTR
 
 | Input | Motors | Sent to the phone |
 |---|---|---|
-| Power on | Self-test KIRI → TENGAH → KANAN | (advertises as `SENTRA-01`) |
+| Power on | Self-test LEFT → CENTER → RIGHT | (advertises as `SENTRA-01`) |
 | Phone connects | 2 taps, all | `D:<cm>` every 250 ms (`D:999` = nothing) |
-| `FORWARD` | 1 tap KIRI+KANAN, then silent | `ACK:FORWARD` |
-| `LEFT` / `RIGHT` | 2 × 250 ms KIRI / KANAN, every 1.5 s | `ACK:LEFT` / `ACK:RIGHT` |
+| `FORWARD` | 1 tap LEFT+RIGHT, then silent | `ACK:FORWARD` |
+| `LEFT` / `RIGHT` | 2 × 250 ms LEFT / RIGHT, every 1.5 s | `ACK:LEFT` / `ACK:RIGHT` |
 | `STOP` | All, 500 ms on / 500 ms off | `ACK:STOP` |
 | `ARRIVED` | 3 fast taps, navigation ends | `ACK:ARRIVED` |
 | `IDLE`, `TEST`, `LOW`, `HIGH` | none / 2 buzzes / soft / strong | `ACK:…` |
 | `PING` | – | nothing (only resets the 6 s timeout) |
 | Unknown text | – | `ERR:<text>` (cut to 20 characters) |
-| Obstacle 100–150 / 50–100 cm | TENGAH tap every 900 / 350 ms | |
-| Obstacle < 50 cm | TENGAH continuous, everything else held back | |
-| No message for 6 s while navigating | 2 buzzes KIRI+KANAN, navigation ends | |
+| Obstacle 100–150 / 50–100 cm | CENTER tap every 900 / 350 ms | |
+| Obstacle < 50 cm | CENTER continuous, everything else held back | |
+| No message for 6 s while navigating | 2 buzzes LEFT+RIGHT, navigation ends | |
 | Button short / long (≥ 1 s) | – / 1–2 buzzes | `BTN:SHORT` / `BTN:LONG,HIGH` or `BTN:LONG,LOW` |
-| Phone disconnects | 1 long buzz KIRI+KANAN, navigation ends, advertises again | |
+| Phone disconnects | 1 long buzz LEFT+RIGHT, navigation ends, advertises again | |
 
-Commands are case-insensitive. Zones use 8 cm hysteresis: leaving BAHAYA needs more than 58 cm.
+Commands are case-insensitive. Zones use 8 cm hysteresis: leaving DANGER needs more than 58 cm.
 
 ## Differences from the §7.5 listing
 

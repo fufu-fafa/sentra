@@ -84,14 +84,14 @@ try {
   assert.equal(health.service, 'sentra-relay');
   assert.match(health.relayId, /^[0-9a-f]{16}$/);
 
-  const w = (await api('POST', '/v1/children', null, { name: 'Anak 1' })).json;
+  const w = (await api('POST', '/v1/children', null, { name: 'Child 1' })).json;
   assert.ok(w.token);
 
   assert.equal((await api('POST', '/v1/link', null, { code: '000000', name: 'X' })).status, 404, 'bad code refused');
   const invite = (await api('POST', '/v1/invites', w.token)).json;
   const c = (await api('POST', '/v1/link', null, { code: invite.code, name: 'Ibu' })).json;
   assert.ok(c.token);
-  assert.equal(c.child.name, 'Anak 1');
+  assert.equal(c.child.name, 'Child 1');
   assert.equal((await api('POST', '/v1/link', null, { code: invite.code, name: 'Y' })).status, 404, 'invite is single use');
   assert.equal((await api('GET', '/v1/parents', w.token)).json.parents.length, 1);
   assert.equal((await api('GET', '/v1/dashboard', w.token)).status, 401, 'child token is not a parent token');
@@ -102,7 +102,7 @@ try {
   const start = (await api('POST', '/v1/events', w.token, event(1, 'NAV_START'))).json;
   assert.equal(start.duplicate, false);
   assert.equal((await api('POST', '/v1/events', w.token, event(1, 'NAV_START'))).json.duplicate, true, 'resend is a duplicate');
-  const off = (await api('POST', '/v1/events', w.token, event(2, 'KELUAR_RUTE', { lat: -6.9031, lon: 107.6189 }))).json;
+  const off = (await api('POST', '/v1/events', w.token, event(2, 'OFF_ROUTE', { lat: -6.9031, lon: 107.6189 }))).json;
   await api('POST', '/v1/heartbeat', w.token, {
     status: { navigating: true, sleeveConnected: true, navState: 'OFF_ROUTE', routeName: 'Rumah ke sekolah', nextPoint: 2, distanceM: 31 },
   });
@@ -110,8 +110,8 @@ try {
   assert.equal(s.of('event').length, 2, 'parent told once per event, not twice');
   assert.equal(s.of('event')[0].data.alarm, false, 'NAV_START is not an alarm');
   const alarm = s.of('event')[1].data;
-  assert.equal(alarm.alarm, true, 'KELUAR_RUTE is an alarm');
-  assert.equal(alarm.childName, 'Anak 1');
+  assert.equal(alarm.alarm, true, 'OFF_ROUTE is an alarm');
+  assert.equal(alarm.childName, 'Child 1');
   assert.equal(alarm.lat, -6.9031);
   assert.equal(s.of('status')[0].data.status.routeName, 'Rumah ke sekolah');
   assert.equal((await api('POST', '/v1/events', w.token, event(3, 'OFFLINE'))).status, 400, 'a phone cannot raise OFFLINE');
@@ -150,17 +150,17 @@ try {
   assert.equal((await api('GET', '/v1/children/999/track', c.token)).status, 404, 'no track for a child you do not follow');
 
   // --- Alarms that end by themselves ---------------------------------------------------------
-  const lost = (await api('POST', '/v1/events', w.token, event(4, 'TERPUTUS'))).json;
-  await api('POST', '/v1/events', w.token, event(5, 'TERSAMBUNG'));
-  await until(() => s.of('ack').some((m) => m.data.eventId === lost.id), 'TERPUTUS to be resolved by TERSAMBUNG');
-  assert.match(s.of('ack').find((m) => m.data.eventId === lost.id).data.by, /tersambung/);
+  const lost = (await api('POST', '/v1/events', w.token, event(4, 'SLEEVE_DISCONNECTED'))).json;
+  await api('POST', '/v1/events', w.token, event(5, 'SLEEVE_CONNECTED'));
+  await until(() => s.of('ack').some((m) => m.data.eventId === lost.id), 'SLEEVE_DISCONNECTED to be resolved by SLEEVE_CONNECTED');
+  assert.match(s.of('ack').find((m) => m.data.eventId === lost.id).data.by, /connected again/);
 
   // --- Re-push: an alarm nobody acknowledges is sent again -----------------------------------
-  const off2 = (await api('POST', '/v1/events', w.token, event(6, 'KELUAR_RUTE'))).json;
+  const off2 = (await api('POST', '/v1/events', w.token, event(6, 'OFF_ROUTE'))).json;
   const again = await until(() => s.of('event').find((m) => m.data.id === off2.id && m.data.escalated), 'the re-push');
   assert.equal(again.data.escalations, 1);
-  await api('POST', '/v1/events', w.token, event(7, 'KEMBALI_RUTE'));
-  await until(() => s.of('ack').some((m) => m.data.eventId === off2.id), 'KELUAR_RUTE to be resolved by KEMBALI_RUTE');
+  await api('POST', '/v1/events', w.token, event(7, 'BACK_ON_ROUTE'));
+  await until(() => s.of('ack').some((m) => m.data.eventId === off2.id), 'OFF_ROUTE to be resolved by BACK_ON_ROUTE');
 
   // --- 60-second offline alarm (1.5 s here): silence during a trip -----------------------------
   await api('POST', '/v1/heartbeat', w.token, { status: { navigating: true, sleeveConnected: true } });
@@ -195,11 +195,11 @@ try {
 
   // --- Push rules -------------------------------------------------------------------------------
   const pushed = (type, alarmFlag) => pushPayload('event', { id: 1, childId: 1, type, alarm: alarmFlag, message: 'x' });
-  assert.equal(pushed('KELUAR_RUTE', true).urgent, true);
-  assert.equal(pushed('TERPUTUS', true).urgent, true);
+  assert.equal(pushed('OFF_ROUTE', true).urgent, true);
+  assert.equal(pushed('SLEEVE_DISCONNECTED', true).urgent, true);
   assert.equal(pushed('OFFLINE', true).urgent, true);
   assert.equal(pushed('ARRIVED', false).urgent, false, 'ARRIVED is normal priority');
-  assert.equal(pushed('BELOK_KIRI', false), null, 'turns do not wake the phone');
+  assert.equal(pushed('TURN_LEFT', false), null, 'turns do not wake the phone');
   assert.equal(pushPayload('location', { childId: 1 }), null, 'locations only go down the stream');
 
   await api('DELETE', `/v1/parents/${c.parentId}`, w.token);

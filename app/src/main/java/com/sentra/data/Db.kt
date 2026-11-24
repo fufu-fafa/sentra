@@ -14,7 +14,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.sentra.nav.GeoPoint
 import kotlinx.coroutines.flow.Flow
 
-/** A route recorded by the companion (Rekam Rute, §9.4): start, every turn, destination. */
+/** A route recorded by the companion (Record Route, §9.4): start, every turn, destination. */
 @Entity(tableName = "routes")
 data class RouteEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -42,9 +42,9 @@ data class RouteEntity(
 @Entity(tableName = "events")
 data class EventEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    /** The sleeve's Bluetooth address, or SIMULASI. */
+    /** The sleeve's Bluetooth address, or SIMULATED. */
     val deviceAddress: String,
-    /** A relay event type: NAV_START, BELOK_KIRI, KELUAR_RUTE, ARRIVED, TERPUTUS, … */
+    /** A relay event type: NAV_START, TURN_LEFT, OFF_ROUTE, ARRIVED, SLEEVE_DISCONNECTED, … */
     val type: String,
     /** The phone's battery. */
     val batteryPct: Int,
@@ -71,7 +71,7 @@ data class LocationEntity(
     val bearing: Float,
 )
 
-/** A finished trip, for Riwayat Rute on the child's phone. Kept on the phone only. */
+/** A finished trip, for Route History on the child's phone. Kept on the phone only. */
 @Entity(tableName = "trips")
 data class TripEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -161,7 +161,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun trips(): TripDao
 
     companion object {
-        /** Version 2 adds Riwayat Rute. */
+        /** Version 2 adds Route History. */
         private val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(

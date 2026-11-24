@@ -67,7 +67,7 @@ class AlarmActivity : ComponentActivity() {
                     Text(title, color = Tokens.Wrong, style = MaterialTheme.typography.headlineLarge, modifier = Modifier.semantics { heading() })
                     Spacer(Modifier.height(12.dp))
                     Text(
-                        "$child · ${SimpleDateFormat("d MMM HH:mm", Locale("id", "ID")).format(Date(at))}",
+                        "$child · ${SimpleDateFormat("d MMM HH:mm", Locale.ENGLISH).format(Date(at))}",
                         color = Tokens.Text,
                     )
                     Spacer(Modifier.height(12.dp))
@@ -77,7 +77,7 @@ class AlarmActivity : ComponentActivity() {
                         onClick = { care.acknowledge(id); finish() },
                         modifier = Modifier.fillMaxWidth().height(64.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Tokens.Wrong, contentColor = Tokens.AccentText),
-                    ) { Text("Sudah saya lihat", style = MaterialTheme.typography.titleMedium) }
+                    ) { Text("I've seen it", style = MaterialTheme.typography.titleMedium) }
                     Spacer(Modifier.height(12.dp))
                     // The map is what a parent needs next; the alarm keeps ringing until acknowledged.
                     OutlinedButton(
@@ -87,7 +87,7 @@ class AlarmActivity : ComponentActivity() {
                             finish()
                         },
                         modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Lihat di peta", color = Tokens.Text) }
+                    ) { Text("View on map", color = Tokens.Text) }
                 }
             }
         }
@@ -105,7 +105,7 @@ class AlarmActivity : ComponentActivity() {
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 .putExtra(EXTRA_ID, e.id)
                 .putExtra(EXTRA_TITLE, AlertRules.alarmTitle(e.type))
-                .putExtra(EXTRA_CHILD, child.ifBlank { "Anak" })
+                .putExtra(EXTRA_CHILD, child.ifBlank { "Child" })
                 .putExtra(EXTRA_MESSAGE, e.message)
                 .putExtra(EXTRA_AT, e.occurredAt)
     }

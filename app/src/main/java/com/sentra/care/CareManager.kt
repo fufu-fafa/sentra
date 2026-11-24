@@ -146,8 +146,8 @@ data class WatchedChild(
 enum class StreamState { OFF, CONNECTING, LIVE, PUSH }
 
 /**
- * Mode Orang tua (SENTRA Care): follows the child on the relay's live stream and rings for
- * KELUAR_RUTE, TERPUTUS and OFFLINE. From fall-bracelet's CaregiverManager, with the map data
+ * Parent mode (SENTRA Care): follows the child on the relay's live stream and rings for
+ * OFF_ROUTE, SLEEVE_DISCONNECTED and OFFLINE. From fall-bracelet's CaregiverManager, with the map data
  * added. Lives as long as the process; [CareService] keeps the process alive while linked when
  * push isn't available.
  */
@@ -233,7 +233,7 @@ class CareManager(
 
     /** A data message from FcmService. Same handling as the stream, so nothing rings twice. */
     fun handlePush(data: Map<String, String>) {
-        // The relay keeps the FCM token after a sign-out or a switch to mode Anak.
+        // The relay keeps the FCM token after a sign-out or a switch to Child mode.
         if (current().parentToken == null || current().mode != AppMode.PARENT) return
         when (data["kind"]) {
             "event" -> {
@@ -271,7 +271,7 @@ class CareManager(
         r.getJSONObject("child").getString("name")
     }.onFailure { Log.w(TAG, "link failed", it) }
 
-    /** "Cari relay" on the link screen: scans the WiFi and returns the address it found. */
+    /** "Find relay" on the link screen: scans the WiFi and returns the address it found. */
     suspend fun findRelay(): String? = finder.findNow()?.url
 
     suspend fun refresh() {
@@ -300,7 +300,7 @@ class CareManager(
     fun acknowledge(eventId: Long) = scope.launch {
         alerts.cancelCareAlarm(eventId)
         runCatching { client().post("/v1/events/$eventId/ack") }
-            .onFailure { _error.value = "Tanda \"sudah dilihat\" tidak terkirim: ${it.message}" }
+            .onFailure { _error.value = "Could not send \"seen\": ${it.message}" }
         runCatching { refresh() }
     }
 
@@ -315,11 +315,11 @@ class CareManager(
                 readStream(url, token)
                 backoff = 2_000L
             } catch (e: RelayException) {
-                _error.value = if (e.status == 401) "Sambungan HP ini sudah dihapus. Hubungkan lagi." else "Relay tidak terjangkau: ${e.message}"
+                _error.value = if (e.status == 401) "This phone's link was removed. Link it again." else "Relay unreachable: ${e.message}"
                 // Found at a new address: the settings change restarts the stream from start().
                 if (e.status == 0 && finder.afterFailure()?.url.let { it != null && it != url }) return
             } catch (e: Exception) {
-                _error.value = "Relay tidak terjangkau: ${e.message}"
+                _error.value = "Relay unreachable: ${e.message}"
                 if (finder.afterFailure()?.url.let { it != null && it != url }) return
             }
             _stream.value = StreamState.CONNECTING
@@ -336,7 +336,7 @@ class CareManager(
         c.setRequestProperty("Accept", "text/event-stream")
         current().lastStreamEventId.takeIf { it > 0 }?.let { c.setRequestProperty("Last-Event-ID", it.toString()) }
         try {
-            if (c.responseCode != 200) throw RelayException(c.responseCode, "stream ditolak (HTTP ${c.responseCode})")
+            if (c.responseCode != 200) throw RelayException(c.responseCode, "stream refused (HTTP ${c.responseCode})")
             _stream.value = StreamState.LIVE
             _error.value = null
             val reader = c.inputStream.bufferedReader()

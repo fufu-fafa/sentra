@@ -77,7 +77,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         m.setSimulatedDetour(on)
     }
 
-    // --- Rekam Rute (§9.4) ---------------------------------------------------------------
+    // --- Record Route (§9.4) -------------------------------------------------------------
 
     private val _draft = MutableStateFlow<List<GeoPoint>>(emptyList())
     /** The points marked so far: start, turns, and the destination once [draftDone]. */
@@ -90,20 +90,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** GPS on while the recording screen is open. */
     fun setFixWanted(on: Boolean) = m.setFixWanted(on)
 
-    /** TITIK MULAI: starts a new list. */
+    /** Start point: starts a new list. */
     fun recordStart() {
         _draft.value = emptyList()
         _draftDone.value = false
         addPoint()
     }
 
-    /** TANDAI BELOK. */
+    /** Mark turn. */
     fun recordTurn() {
         if (_draft.value.isEmpty() || _draftDone.value) return
         addPoint()
     }
 
-    /** TITIK TUJUAN: the last point. */
+    /** Destination: the last point. */
     fun recordEnd() {
         if (_draft.value.isEmpty() || _draftDone.value) return
         if (addPoint()) _draftDone.value = true
@@ -113,17 +113,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private fun addPoint(): Boolean {
         val f = fix.value
         if (f == null || f.accuracyM > NavEngine.MAX_RECORD_ACCURACY_M) {
-            m.speak("Sinyal GPS lemah, tunggu sebentar")
-            _recordMessage.value = if (f == null) "Belum ada sinyal GPS."
-            else "GPS lemah (±${f.accuracyM.roundToInt()} m). Tunggu sampai ±15 m."
+            m.speak("GPS signal is weak, please wait")
+            _recordMessage.value = if (f == null) "No GPS signal yet."
+            else "Weak GPS (±${f.accuracyM.roundToInt()} m). Wait until ±15 m."
             return false
         }
         val previous = _draft.value.lastOrNull()
         _draft.value = _draft.value + f.point
-        m.speak("Titik ${_draft.value.size} tersimpan")
+        m.speak("Point ${_draft.value.size} saved")
         val gap = previous?.let { Geo.distanceM(it, f.point) }
-        // "Bila dua belokan sangat dekat (< 15 m), GPS sulit membedakannya."
-        _recordMessage.value = if (gap != null && gap < 15) "Hanya ${gap.roundToInt()} m dari titik sebelumnya; sebaiknya 20 m atau lebih."
+        // "When two turns are very close (< 15 m), GPS can hardly tell them apart." (§9.4)
+        _recordMessage.value = if (gap != null && gap < 15) "Only ${gap.roundToInt()} m from the previous point; 20 m or more is better."
         else null
         return true
     }
@@ -140,18 +140,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _recordMessage.value = null
     }
 
-    /** SIMPAN. */
+    /** Save route. */
     fun saveRoute(name: String) = viewModelScope.launch {
         if (_draft.value.size < 2 || name.isBlank()) return@launch
         m.saveRoute(name, _draft.value)
-        m.speak("Rute tersimpan")
+        m.speak("Route saved")
         discardDraft()
     }
 
     /** A ready-made route for the simulated GPS, so navigation can be tried without recording one. */
-    fun addSampleRoute() = viewModelScope.launch { m.saveRoute("Contoh: keliling Gedung Sate", SAMPLE_ROUTE) }
+    fun addSampleRoute() = viewModelScope.launch { m.saveRoute("Sample: around Gedung Sate", SAMPLE_ROUTE) }
 
-    // --- Mode Demo (§9.6) ----------------------------------------------------------------
+    // --- Demo Mode (§9.6) ----------------------------------------------------------------
 
     val demoStep = m.demoStep
     fun demo(command: SleeveCommand) { m.demoCommand(command) }
@@ -185,7 +185,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _finding.value = true
         val found = m.finder.findNow()
         _finding.value = false
-        _relayMessage.value = if (found == null) "Tidak ada relay di WiFi ini." else "Relay ditemukan di ${found.url}"
+        _relayMessage.value = if (found == null) "No relay found on this WiFi." else "Relay found at ${found.url}"
         if (found != null) m.syncNow()
     }
 
@@ -199,7 +199,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun newInvite() = viewModelScope.launch {
         runCatching { m.relay.ensureRegistered(); m.relay.invite() }
             .onSuccess { _invite.value = it; _relayMessage.value = null }
-            .onFailure { _relayMessage.value = "Kode undangan gagal dibuat: ${it.message}" }
+            .onFailure { _relayMessage.value = "Could not create invite code: ${it.message}" }
     }
 
     fun refreshParents() = viewModelScope.launch {
@@ -208,14 +208,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun removeParent(id: Long) = viewModelScope.launch {
-        runCatching { m.relay.removeParent(id) }.onFailure { _relayMessage.value = "Gagal menghapus: ${it.message}" }
+        runCatching { m.relay.removeParent(id) }.onFailure { _relayMessage.value = "Could not remove: ${it.message}" }
         refreshParents()
         m.syncNow()
     }
 
     fun sendTestAlert() {
         m.sendTestAlert()
-        _relayMessage.value = "Tes alarm terkirim."
+        _relayMessage.value = "Test alarm sent."
     }
 
     fun clearHistory() = viewModelScope.launch { m.clearHistory() }
@@ -230,8 +230,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun link(url: String, code: String, name: String) = viewModelScope.launch {
         _linkResult.value = cg.link(url, code, name).fold({ "$LINKED $it" }, {
-            if ((it as? RelayException)?.status == 404) "Kode salah atau sudah kedaluwarsa. Minta kode baru."
-            else "Gagal menghubungkan: ${it.message}"
+            if ((it as? RelayException)?.status == 404) "Wrong or expired code. Ask for a new one."
+            else "Could not link: ${it.message}"
         })
     }
 
@@ -243,7 +243,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _findingForCare.value = true
         val url = cg.findRelay()
         _findingForCare.value = false
-        if (url == null) _linkResult.value = "Tidak ada relay di WiFi ini."
+        if (url == null) _linkResult.value = "No relay found on this WiFi."
     }
 
     fun signOutCare() = viewModelScope.launch {
@@ -284,7 +284,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     companion object {
         /** Prefix of a successful link result. */
-        const val LINKED = "Terhubung ke"
+        const val LINKED = "Linked to"
 
         /** The same loop server_relay/fake-child.mjs walks, around Gedung Sate in Bandung. */
         val SAMPLE_ROUTE = listOf(

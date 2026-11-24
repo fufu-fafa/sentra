@@ -54,7 +54,7 @@ import com.sentra.ui.theme.AppTheme
 import com.sentra.ui.theme.Mono
 import com.sentra.ui.theme.Tokens
 
-/** Beranda: the sleeve, Mulai Navigasi, Lokasi Live and Rute, and what navigation is doing. */
+/** Home: the sleeve, Start Navigation, Live Location and Routes, and what navigation is doing. */
 @Composable
 fun HomeScreen(
     vm: AppViewModel,
@@ -73,7 +73,7 @@ fun HomeScreen(
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         Box(Modifier.fillMaxWidth().statusBarsPadding()) {
             IconButton(onClick = openSettings, modifier = Modifier.align(Alignment.TopEnd).padding(4.dp)) {
-                Icon(Icons.Rounded.Settings, contentDescription = "Setelan", tint = Tokens.Brand)
+                Icon(Icons.Rounded.Settings, contentDescription = "Settings", tint = Tokens.Brand)
             }
             Box(Modifier.fillMaxWidth().padding(top = 12.dp), contentAlignment = Alignment.Center) {
                 SentraLogo(118.dp)
@@ -84,14 +84,14 @@ fun HomeScreen(
             SetupWarnings(childMode = true, simulatedSleeve = settings.simulatedSleeve, simulatedGps = settings.simulatedGps)
             SleeveCard(vm, settings.simulatedSleeve, settings.deviceName, enableBluetooth)
             when {
-                nav.active -> PrimaryButton("Lanjutkan Navigasi", resumeNav, icon = Icons.Rounded.Navigation, chevron = true)
-                selected != null -> PrimaryButton("Mulai Navigasi", { vm.startNavigation(selected.id) }, icon = Icons.Rounded.Navigation, chevron = true)
-                else -> PrimaryButton("Mulai Navigasi", openRoutes, icon = Icons.Rounded.Navigation, chevron = true)
+                nav.active -> PrimaryButton("Resume Navigation", resumeNav, icon = Icons.Rounded.Navigation, chevron = true)
+                selected != null -> PrimaryButton("Start Navigation", { vm.startNavigation(selected.id) }, icon = Icons.Rounded.Navigation, chevron = true)
+                else -> PrimaryButton("Start Navigation", openRoutes, icon = Icons.Rounded.Navigation, chevron = true)
             }
             message?.let { Text(it, color = Tokens.Wrong, style = MaterialTheme.typography.bodyMedium) }
             Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                FeatureTile("Lokasi Live", Icons.Rounded.LocationOn, Tokens.Blue, Tokens.BlueSoft, Modifier.weight(1f), openLive)
-                FeatureTile("Rute", Icons.Rounded.Route, Tokens.Pink, Tokens.PinkSoft, Modifier.weight(1f), openRoutes)
+                FeatureTile("Live Location", Icons.Rounded.LocationOn, Tokens.Blue, Tokens.BlueSoft, Modifier.weight(1f), openLive)
+                FeatureTile("Routes", Icons.Rounded.Route, Tokens.Pink, Tokens.PinkSoft, Modifier.weight(1f), openRoutes)
             }
             NavStatusCard(vm, selected?.name)
             RelayLine(vm)
@@ -102,7 +102,7 @@ fun HomeScreen(
 
 @Composable
 private fun FeatureTile(label: String, icon: ImageVector, tint: Color, bg: Color, modifier: Modifier, onClick: () -> Unit) {
-    Card(modifier.fillMaxHeight(), onClick = onClick, onClickLabel = "Buka $label") {
+    Card(modifier.fillMaxHeight(), onClick = onClick, onClickLabel = "Open $label") {
         Column(
             Modifier.fillMaxWidth().heightIn(min = 84.dp).semantics { role = Role.Button },
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -135,32 +135,32 @@ private fun SleeveCard(vm: AppViewModel, simulated: Boolean, deviceName: String?
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    if (simulated) "Sleeve simulasi" else deviceName ?: "Smart Haptic Sleeve",
+                    if (simulated) "Simulated sleeve" else deviceName ?: "Smart Haptic Sleeve",
                     style = MaterialTheme.typography.titleMedium, color = Tokens.Text,
                 )
-                // Announced by TalkBack when it changes, like the spoken "Sleeve tersambung".
+                // Announced by TalkBack when it changes, like the spoken "Sleeve connected".
                 val live = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
                 when (link) {
-                    LinkState.CONNECTED -> StatusDot("Tersambung", Tokens.Correct, live)
-                    LinkState.CONNECTING -> StatusDot("Mencari…", Tokens.Muted, live)
-                    LinkState.DISCONNECTED -> StatusDot("Terputus", Tokens.Wrong, live)
+                    LinkState.CONNECTED -> StatusDot("Connected", Tokens.Correct, live)
+                    LinkState.CONNECTING -> StatusDot("Searching…", Tokens.Muted, live)
+                    LinkState.DISCONNECTED -> StatusDot("Disconnected", Tokens.Wrong, live)
                 }
             }
             if (link == LinkState.CONNECTED) ObstacleBadge(obstacle)
         }
         if (link == LinkState.CONNECTED && simulated) {
             Spacer(Modifier.height(8.dp))
-            Text("Motor: " + (pattern?.let { patternText(it) } ?: "diam"), color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall)
+            Text("Motor: " + (pattern?.let { patternText(it) } ?: "idle"), color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall)
         }
         if (link != LinkState.CONNECTED && !simulated) {
             Spacer(Modifier.height(12.dp))
             val searching = scan == ScanState.Searching
-            PrimaryButton(if (searching) "Mencari…" else "Sambungkan", vm::connectSleeve, enabled = !searching, icon = Icons.Rounded.Bluetooth, height = 48.dp)
+            PrimaryButton(if (searching) "Searching…" else "Connect", vm::connectSleeve, enabled = !searching, icon = Icons.Rounded.Bluetooth, height = 48.dp)
             val hint = when (val s = scan) {
-                ScanState.NotFound -> "Sleeve tidak ditemukan. Pastikan menyala dan dekat."
+                ScanState.NotFound -> "Sleeve not found. Make sure it is on and nearby."
                 is ScanState.Failed -> s.reason
                 ScanState.Searching -> null
-                ScanState.Idle -> if (link == LinkState.CONNECTING) "Menunggu sleeve…" else null
+                ScanState.Idle -> if (link == LinkState.CONNECTING) "Waiting for sleeve…" else null
             }
             hint?.let {
                 val bad = scan is ScanState.Failed || scan == ScanState.NotFound
@@ -168,7 +168,7 @@ private fun SleeveCard(vm: AppViewModel, simulated: Boolean, deviceName: String?
             }
             if (scan is ScanState.Failed) {
                 Spacer(Modifier.height(8.dp))
-                SoftButton("Nyalakan Bluetooth", enableBluetooth, Modifier.fillMaxWidth())
+                SoftButton("Turn on Bluetooth", enableBluetooth, Modifier.fillMaxWidth())
             }
         }
     }
@@ -179,11 +179,11 @@ private fun SleeveCard(vm: AppViewModel, simulated: Boolean, deviceName: String?
 private fun ObstacleBadge(cm: Int?) {
     val clear = cm == null || cm >= SentraProtocol.NO_OBSTACLE_CM
     Column(horizontalAlignment = Alignment.End, modifier = Modifier.semantics(mergeDescendants = true) {}) {
-        Text("Rintangan", color = AppTheme.extra.muted, style = MaterialTheme.typography.labelSmall)
+        Text("Obstacle", color = AppTheme.extra.muted, style = MaterialTheme.typography.labelSmall)
         Text(
             when {
                 cm == null -> "—"
-                clear -> "Kosong"
+                clear -> "Clear"
                 else -> "$cm cm"
             },
             style = MaterialTheme.typography.titleMedium,
@@ -204,11 +204,11 @@ fun obstacleColor(cm: Int?): Color = when {
 fun ObstacleReadout(cm: Int?) {
     val clear = cm == null || cm >= SentraProtocol.NO_OBSTACLE_CM
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("Jarak rintangan", color = AppTheme.extra.muted, modifier = Modifier.weight(1f))
+        Text("Obstacle distance", color = AppTheme.extra.muted, modifier = Modifier.weight(1f))
         Text(
             when {
                 cm == null -> "—"
-                clear -> "Kosong"
+                clear -> "Clear"
                 else -> "$cm cm"
             },
             style = MaterialTheme.typography.titleLarge,
@@ -219,26 +219,26 @@ fun ObstacleReadout(cm: Int?) {
 }
 
 fun patternText(command: SleeveCommand): String = when (command) {
-    SleeveCommand.FORWARD -> "lurus"
-    SleeveCommand.LEFT -> "kiri"
-    SleeveCommand.RIGHT -> "kanan"
+    SleeveCommand.FORWARD -> "straight"
+    SleeveCommand.LEFT -> "left"
+    SleeveCommand.RIGHT -> "right"
     SleeveCommand.STOP -> "stop"
     else -> command.label.lowercase()
 }
 
-/** Status Navigasi: the instruction of the moment, with a button that reads it out. */
+/** Navigation Status: the instruction of the moment, with a button that reads it out. */
 @Composable
 private fun NavStatusCard(vm: AppViewModel, selectedRoute: String?) {
     val nav by vm.nav.collectAsState()
     val route by vm.navRoute.collectAsState()
     val (icon, title, subtitle) = when {
         nav.active -> navInstruction(nav, route)
-        nav.state == NavState.ARRIVED -> Instruction(Icons.Rounded.LocationOn, "Sudah sampai", route?.name ?: "")
-        else -> Instruction(Icons.Rounded.Navigation, "Siap navigasi", selectedRoute?.let { "Rute: $it" } ?: "Pilih rute dulu di menu Rute")
+        nav.state == NavState.ARRIVED -> Instruction(Icons.Rounded.LocationOn, "Arrived", route?.name ?: "")
+        else -> Instruction(Icons.Rounded.Navigation, "Ready to navigate", selectedRoute?.let { "Route: $it" } ?: "Choose a route in Routes first")
     }
     val offRoute = nav.state == NavState.OFF_ROUTE
     Card(background = if (offRoute) Tokens.WrongBg else Tokens.Card, border = if (offRoute) Tokens.Wrong else Tokens.Border) {
-        SectionLabel("Status Navigasi", icon = Icons.Rounded.LocationOn, tint = Tokens.Accent)
+        SectionLabel("Navigation Status", icon = Icons.Rounded.LocationOn, tint = Tokens.Accent)
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconBubble(icon, if (offRoute) Tokens.Wrong else Tokens.Blue, if (offRoute) Color.White else Tokens.BlueSoft, 48.dp)
             Spacer(Modifier.width(12.dp))
@@ -264,11 +264,11 @@ fun RelayLine(vm: AppViewModel) {
     val health by vm.relayHealth.collectAsState()
     val h = health ?: return
     val text = when {
-        h.url.isBlank() -> "Orang tua: belum diatur"
-        h.error != null -> "Orang tua: relay tidak terjangkau, ${h.pending} menunggu"
-        !h.registered || h.parents == null -> "Orang tua: menyambung…"
-        h.parents == 0 -> "Orang tua: belum ada yang terhubung"
-        else -> "Orang tua: ${h.parents} terhubung" + if (h.pending > 0) ", ${h.pending} menunggu" else ""
+        h.url.isBlank() -> "Parents: not set up"
+        h.error != null -> "Parents: relay unreachable, ${h.pending} waiting"
+        !h.registered || h.parents == null -> "Parents: connecting…"
+        h.parents == 0 -> "Parents: none linked yet"
+        else -> "Parents: ${h.parents} linked" + if (h.pending > 0) ", ${h.pending} waiting" else ""
     }
     Text(text, color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 4.dp))
 }

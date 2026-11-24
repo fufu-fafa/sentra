@@ -59,7 +59,7 @@ class CareService : LifecycleService() {
         val requested = intent != null // null: the system restarted us, nobody called start()
         try {
             ServiceCompat.startForeground(
-                this, AlertDispatcher.CARE_SERVICE_ID, notification("Menyambung ke relay…"),
+                this, AlertDispatcher.CARE_SERVICE_ID, notification("Connecting to relay…"),
                 if (Build.VERSION.SDK_INT >= 34) ServiceInfo.FOREGROUND_SERVICE_TYPE_REMOTE_MESSAGING else 0,
             )
         } catch (e: Exception) {
@@ -78,10 +78,10 @@ class CareService : LifecycleService() {
             val c = care
             lifecycleScope.launch {
                 combine(c.stream, c.children) { s, w ->
-                    val names = w.joinToString { it.name }.ifEmpty { "belum ada" }
+                    val names = w.joinToString { it.name }.ifEmpty { "nobody yet" }
                     when (s) {
-                        StreamState.LIVE -> "Memantau $names"
-                        else -> "Menyambung lagi ke relay…"
+                        StreamState.LIVE -> "Watching $names"
+                        else -> "Reconnecting to relay…"
                     }
                 }.collect { text ->
                     @Suppress("MissingPermission")

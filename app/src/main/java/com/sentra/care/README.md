@@ -1,6 +1,6 @@
 # care
 
-Mode Orang tua (SENTRA Care) behind the screens: following one or more children on the relay,
+Parent mode (SENTRA Care) behind the screens: following one or more children on the relay,
 receiving alarms by live stream or push, the full-screen alarm, and helpers for the history views.
 Part of [`com.sentra`](../README.md); the screens themselves are `CareScreen.kt` in [`ui`](../ui/README.md).
 
@@ -11,8 +11,8 @@ Part of [`com.sentra`](../README.md); the screens themselves are `CareScreen.kt`
 | `CareManager.kt` | Data classes from the relay (`RemoteEvent`, `TrackPoint`, `ChildStatus`, `WatchedChild`, `StreamState`) and `CareManager`: link with an invite code, read `/v1/dashboard` and tracks, keep the SSE stream `/v1/stream` open (resuming with `Last-Event-ID`), raise alerts, acknowledge, sign out, send the FCM token. Adapted from fall-bracelet's `CaregiverManager` |
 | `CareService.kt` | `CareService`: foreground service that keeps the stream open in the background when push is not available. Also `ForegroundStartGate` (a stop that arrives before `startForeground()` is deferred, or Android kills the app) and `AckReceiver` (the Acknowledge button on an alarm notification) |
 | `FcmService.kt` | Firebase Cloud Messaging receiver; passes data-only messages and new tokens to `CareManager`. Only active when the app is built with `app/google-services.json` |
-| `AlarmActivity.kt` | Full-screen alarm over the lock screen with "Sudah saya lihat" and "Lihat di peta" |
-| `HistoryView.kt` | Pure helpers: `HistoryMode` and `historyPeriod` (day / week / all, matching the web page), `dayName`, `ago` ("5 mnt lalu"), and `careTrips`, which groups the event feed into trips (NAV_START to ARRIVED or NAV_STOP) for Riwayat Perjalanan |
+| `AlarmActivity.kt` | Full-screen alarm over the lock screen with "I've seen it" and "View on map" |
+| `HistoryView.kt` | Pure helpers: `HistoryMode` and `historyPeriod` (day / week / all, matching the web page), `dayName`, `ago` ("5 min ago"), and `careTrips`, which groups the event feed into trips (NAV_START to ARRIVED or NAV_STOP) for Trip History |
 
 ## How it works
 

@@ -71,9 +71,9 @@ fun routeSummary(route: RouteEntity): String {
     return "${distanceText(m)} · ${etaText(m)}"
 }
 
-private val ID = Locale("id", "ID")
+private val EN = Locale.ENGLISH
 
-/** Rute: the saved routes as destinations, with a filter box, like "Cari tujuan…". */
+/** Routes: the saved routes as destinations, with a filter box, like "Search destinations…". */
 @Composable
 fun RoutePicker(vm: AppViewModel, onBack: () -> Unit, onOpen: (Long) -> Unit, onRecord: () -> Unit, onHistory: () -> Unit) {
     val routes by vm.routes.collectAsState()
@@ -84,14 +84,14 @@ fun RoutePicker(vm: AppViewModel, onBack: () -> Unit, onOpen: (Long) -> Unit, on
     val shown = routes.filter { query.isBlank() || it.name.contains(query.trim(), ignoreCase = true) }
 
     Column(Modifier.fillMaxSize().navigationBarsPadding()) {
-        TopBar("Rute", onBack) {
-            IconButton(onClick = onHistory) { Icon(Icons.Rounded.History, contentDescription = "Riwayat rute", tint = Tokens.Text) }
+        TopBar("Routes", onBack) {
+            IconButton(onClick = onHistory) { Icon(Icons.Rounded.History, contentDescription = "Route history", tint = Tokens.Text) }
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             if (routes.isNotEmpty()) {
                 OutlinedTextField(
                     value = query, onValueChange = { query = it.take(40) },
-                    placeholder = { Text("Cari tujuan…") },
+                    placeholder = { Text("Search destinations…") },
                     leadingIcon = { Icon(Icons.Rounded.Search, null, tint = AppTheme.extra.muted) },
                     singleLine = true, shape = RoundedCornerShape(50),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -103,14 +103,14 @@ fun RoutePicker(vm: AppViewModel, onBack: () -> Unit, onOpen: (Long) -> Unit, on
             }
             if (routes.isEmpty()) {
                 Card {
-                    Text("Belum ada rute.", style = MaterialTheme.typography.titleMedium, color = Tokens.Text)
+                    Text("No routes yet.", style = MaterialTheme.typography.titleMedium, color = Tokens.Text)
                     Text(
-                        "Rekam rute dengan berjalan sekali bersama anak: tandai titik mulai, tiap belokan, dan tujuan.",
+                        "Record a route by walking it once with the child: mark the start, every turn, and the destination.",
                         color = AppTheme.extra.muted, style = MaterialTheme.typography.bodyMedium,
                     )
                 }
             } else if (shown.isEmpty()) {
-                Text("Tidak ada rute bernama \"${query.trim()}\".", color = AppTheme.extra.muted, modifier = Modifier.padding(8.dp))
+                Text("No route named \"${query.trim()}\".", color = AppTheme.extra.muted, modifier = Modifier.padding(8.dp))
             }
             shown.forEach { r ->
                 ListRow(
@@ -120,17 +120,17 @@ fun RoutePicker(vm: AppViewModel, onBack: () -> Unit, onOpen: (Long) -> Unit, on
                     onClick = { picked = r.id },
                 )
             }
-            SoftButton("Rekam rute baru", onRecord, Modifier.fillMaxWidth(), icon = Icons.Rounded.Add, enabled = !nav.active)
-            if (nav.active) Text("Hentikan navigasi dulu untuk merekam.", color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall)
+            SoftButton("Record new route", onRecord, Modifier.fillMaxWidth(), icon = Icons.Rounded.Add, enabled = !nav.active)
+            if (nav.active) Text("Stop navigation first to record.", color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall)
             Spacer(Modifier.height(8.dp))
         }
         Box(Modifier.padding(16.dp)) {
-            PrimaryButton("Pilih Tujuan", { onOpen(picked) }, enabled = routes.any { it.id == picked })
+            PrimaryButton("Choose Destination", { onOpen(picked) }, enabled = routes.any { it.id == picked })
         }
     }
 }
 
-/** One route: the map, how long and how far, and Mulai Perjalanan. */
+/** One route: the map, how long and how far, and Start Trip. */
 @Composable
 fun RouteDetail(vm: AppViewModel, id: Long, onBack: () -> Unit, onStarted: () -> Unit) {
     val routes by vm.routes.collectAsState()
@@ -141,15 +141,15 @@ fun RouteDetail(vm: AppViewModel, id: Long, onBack: () -> Unit, onStarted: () ->
     var showPoints by rememberSaveable { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize().navigationBarsPadding()) {
-        TopBar("Rute", onBack) {
+        TopBar("Routes", onBack) {
             if (route != null) {
                 IconButton(onClick = { confirmDelete = true }, enabled = !nav.active) {
-                    Icon(Icons.Rounded.DeleteOutline, contentDescription = "Hapus rute", tint = Tokens.Text)
+                    Icon(Icons.Rounded.DeleteOutline, contentDescription = "Delete route", tint = Tokens.Text)
                 }
             }
         }
         if (route == null) {
-            Text("Rute tidak ada lagi.", color = AppTheme.extra.muted, modifier = Modifier.padding(16.dp))
+            Text("This route no longer exists.", color = AppTheme.extra.muted, modifier = Modifier.padding(16.dp))
             return@Column
         }
         val points = route.geoPoints()
@@ -166,13 +166,13 @@ fun RouteDetail(vm: AppViewModel, id: Long, onBack: () -> Unit, onStarted: () ->
                 }
                 Spacer(Modifier.height(8.dp))
                 InfoLine(Icons.Rounded.Schedule, etaText(length))
-                InfoLine(Icons.Rounded.Straighten, "${distanceText(length)} · ${points.size} titik")
-                TextButton(onClick = { showPoints = !showPoints }) { Text(if (showPoints) "Sembunyikan titik" else "Lihat titik dan belokan") }
+                InfoLine(Icons.Rounded.Straighten, "${distanceText(length)} · ${points.size} points")
+                TextButton(onClick = { showPoints = !showPoints }) { Text(if (showPoints) "Hide points" else "Show points and turns") }
                 if (showPoints) PointList(points)
             }
             message?.let { Text(it, color = Tokens.Wrong) }
             PrimaryButton(
-                if (nav.active) "Navigasi sedang berjalan" else "Mulai Perjalanan",
+                if (nav.active) "Navigation is running" else "Start Trip",
                 { vm.startNavigation(route.id); onStarted() },
                 icon = Icons.AutoMirrored.Rounded.DirectionsWalk,
                 enabled = !nav.active,
@@ -184,10 +184,10 @@ fun RouteDetail(vm: AppViewModel, id: Long, onBack: () -> Unit, onStarted: () ->
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
             containerColor = Tokens.Card,
-            title = { Text("Hapus rute?") },
-            text = { Text("\"${route.name}\" dihapus dari HP ini.", color = AppTheme.extra.muted) },
-            confirmButton = { TextButton(onClick = { vm.deleteRoute(route.id); confirmDelete = false; onBack() }) { Text("Hapus", color = Tokens.Wrong) } },
-            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Batal") } },
+            title = { Text("Delete route?") },
+            text = { Text("\"${route.name}\" will be deleted from this phone.", color = AppTheme.extra.muted) },
+            confirmButton = { TextButton(onClick = { vm.deleteRoute(route.id); confirmDelete = false; onBack() }) { Text("Delete", color = Tokens.Wrong) } },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },
         )
     }
 }
@@ -206,16 +206,16 @@ private fun InfoLine(icon: androidx.compose.ui.graphics.vector.ImageVector, text
 private fun PointList(points: List<GeoPoint>) {
     points.forEachIndexed { i, p ->
         val name = when (i) {
-            0 -> "Mulai"
-            points.lastIndex -> "Tujuan"
-            else -> "Titik ${i + 1}"
+            0 -> "Start"
+            points.lastIndex -> "Destination"
+            else -> "Point ${i + 1}"
         }
         val turn = if (i in 1 until points.lastIndex) {
             when (Geo.turnAt(points[i - 1], p, points[i + 1])) {
-                Turn.LEFT -> "kiri"
-                Turn.RIGHT -> "kanan"
-                Turn.U_TURN -> "putar balik"
-                Turn.STRAIGHT -> "lurus"
+                Turn.LEFT -> "left"
+                Turn.RIGHT -> "right"
+                Turn.U_TURN -> "U-turn"
+                Turn.STRAIGHT -> "straight"
             }
         } else null
         val gap = if (i > 0) "${Geo.distanceM(points[i - 1], p).roundToInt()} m" else null
@@ -227,23 +227,23 @@ private fun PointList(points: List<GeoPoint>) {
     }
 }
 
-// --- Riwayat Rute ------------------------------------------------------------------------------
+// --- Route History -----------------------------------------------------------------------------
 
 @Composable
 fun RouteHistoryScreen(vm: AppViewModel, onBack: () -> Unit) {
     val trips by vm.trips.collectAsState()
     var confirmClear by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().navigationBarsPadding()) {
-        TopBar("Riwayat Rute", onBack) {
+        TopBar("Route History", onBack) {
             if (trips.isNotEmpty()) {
-                IconButton(onClick = { confirmClear = true }) { Icon(Icons.Rounded.DeleteOutline, contentDescription = "Hapus riwayat", tint = Tokens.Text) }
+                IconButton(onClick = { confirmClear = true }) { Icon(Icons.Rounded.DeleteOutline, contentDescription = "Clear history", tint = Tokens.Text) }
             }
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             if (trips.isEmpty()) {
                 Card {
-                    Text("Belum ada perjalanan.", style = MaterialTheme.typography.titleMedium, color = Tokens.Text)
-                    Text("Perjalanan yang selesai tersimpan di sini.", color = AppTheme.extra.muted)
+                    Text("No trips yet.", style = MaterialTheme.typography.titleMedium, color = Tokens.Text)
+                    Text("Finished trips are saved here.", color = AppTheme.extra.muted)
                 }
             }
             trips.forEach { TripRow(it) }
@@ -251,7 +251,7 @@ fun RouteHistoryScreen(vm: AppViewModel, onBack: () -> Unit) {
         }
         if (trips.isNotEmpty()) {
             Box(Modifier.padding(16.dp)) {
-                SoftButton("Hapus riwayat", { confirmClear = true }, Modifier.fillMaxWidth(), icon = Icons.Rounded.DeleteOutline)
+                SoftButton("Clear history", { confirmClear = true }, Modifier.fillMaxWidth(), icon = Icons.Rounded.DeleteOutline)
             }
         }
     }
@@ -259,10 +259,10 @@ fun RouteHistoryScreen(vm: AppViewModel, onBack: () -> Unit) {
         AlertDialog(
             onDismissRequest = { confirmClear = false },
             containerColor = Tokens.Card,
-            title = { Text("Hapus riwayat rute?") },
-            text = { Text("${trips.size} perjalanan dihapus dari HP ini. Rute tidak ikut terhapus.", color = AppTheme.extra.muted) },
-            confirmButton = { TextButton(onClick = { vm.clearTrips(); confirmClear = false }) { Text("Hapus", color = Tokens.Wrong) } },
-            dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Batal") } },
+            title = { Text("Clear route history?") },
+            text = { Text("${trips.size} trips will be deleted from this phone. Routes are kept.", color = AppTheme.extra.muted) },
+            confirmButton = { TextButton(onClick = { vm.clearTrips(); confirmClear = false }) { Text("Delete", color = Tokens.Wrong) } },
+            dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Cancel") } },
         )
     }
 }
@@ -270,20 +270,20 @@ fun RouteHistoryScreen(vm: AppViewModel, onBack: () -> Unit) {
 @Composable
 private fun TripRow(t: TripEntity) {
     val minutes = (t.durationMs / 60_000.0).roundToInt().coerceAtLeast(1)
-    val whenText = SimpleDateFormat("d MMM, HH:mm", ID).format(Date(t.startedAt))
+    val whenText = SimpleDateFormat("d MMM, HH:mm", EN).format(Date(t.startedAt))
     ListRow(
         t.routeName,
-        "$whenText  •  $minutes mnt",
+        "$whenText  •  $minutes min",
         if (t.arrived) Icons.Rounded.Flag else Icons.Rounded.WarningAmber,
         tint = if (t.arrived) Tokens.Pink else Tokens.Warn,
         chevron = false,
         trailing = {
-            if (t.arrived) Pill("Sampai", Tokens.Correct, Tokens.CorrectBg) else Pill("Dihentikan", Tokens.Warn, Tokens.WarnBg)
+            if (t.arrived) Pill("Arrived", Tokens.Correct, Tokens.CorrectBg) else Pill("Stopped", Tokens.Warn, Tokens.WarnBg)
         },
     )
 }
 
-// --- Rekam Rute (§9.4) -------------------------------------------------------------------------
+// --- Record Route (§9.4) -----------------------------------------------------------------------
 
 @Composable
 fun RecordRoute(vm: AppViewModel, onClose: () -> Unit) {
@@ -302,9 +302,9 @@ fun RecordRoute(vm: AppViewModel, onClose: () -> Unit) {
     }
 
     Column(Modifier.fillMaxSize().navigationBarsPadding().verticalScroll(rememberScrollState())) {
-        TopBar("Rekam Rute", leave)
+        TopBar("Record Route", leave)
         Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Tandai titik mulai, tiap belokan, dan tujuan.", color = AppTheme.extra.muted)
+            Text("Mark the start, every turn, and the destination.", color = AppTheme.extra.muted)
             GpsCard(fix)
             if (draft.isNotEmpty() || fix != null) {
                 OsmMap(
@@ -313,10 +313,10 @@ fun RecordRoute(vm: AppViewModel, onClose: () -> Unit) {
                 )
             }
             when {
-                draft.isEmpty() -> PrimaryButton("Titik mulai", vm::recordStart, icon = Icons.Rounded.LocationOn)
+                draft.isEmpty() -> PrimaryButton("Start point", vm::recordStart, icon = Icons.Rounded.LocationOn)
                 !done -> Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    PrimaryButton("Tandai belok", vm::recordTurn, Modifier.weight(1f), icon = Icons.Rounded.Route)
-                    PrimaryButton("Tujuan", vm::recordEnd, Modifier.weight(1f), icon = Icons.Rounded.Flag, color = Tokens.Pink)
+                    PrimaryButton("Mark turn", vm::recordTurn, Modifier.weight(1f), icon = Icons.Rounded.Route)
+                    PrimaryButton("Destination", vm::recordEnd, Modifier.weight(1f), icon = Icons.Rounded.Flag, color = Tokens.Pink)
                 }
             }
             message?.let {
@@ -324,26 +324,26 @@ fun RecordRoute(vm: AppViewModel, onClose: () -> Unit) {
             }
             if (draft.isNotEmpty()) {
                 Card {
-                    SectionLabel("${draft.size} titik · ${routeLengthM(draft).roundToInt()} m", icon = Icons.Rounded.Route)
+                    SectionLabel("${draft.size} points · ${routeLengthM(draft).roundToInt()} m", icon = Icons.Rounded.Route)
                     PointList(draft)
                     Spacer(Modifier.height(8.dp))
-                    SoftButton("Hapus titik terakhir", vm::removeLastPoint, Modifier.fillMaxWidth())
+                    SoftButton("Remove last point", vm::removeLastPoint, Modifier.fillMaxWidth())
                 }
             }
             if (done) {
                 Card {
                     OutlinedTextField(
                         value = name, onValueChange = { name = it.take(40) },
-                        label = { Text("Nama tujuan") }, placeholder = { Text("Rumah ke sekolah") },
+                        label = { Text("Destination name") }, placeholder = { Text("Home to school") },
                         singleLine = true, modifier = Modifier.fillMaxWidth(),
                     )
                     Spacer(Modifier.height(12.dp))
-                    PrimaryButton("Simpan rute", { vm.saveRoute(name); onClose() }, enabled = name.isNotBlank() && draft.size >= 2)
+                    PrimaryButton("Save route", { vm.saveRoute(name); onClose() }, enabled = name.isNotBlank() && draft.size >= 2)
                 }
             }
-            SoftButton(if (draft.isEmpty()) "Kembali" else "Buang rekaman", leave, Modifier.fillMaxWidth())
+            SoftButton(if (draft.isEmpty()) "Back" else "Discard recording", leave, Modifier.fillMaxWidth())
             Text(
-                "Tunggu sampai GPS ±10 m. Tandai di tengah belokan, dengan jarak 20 m atau lebih antar titik.",
+                "Wait until GPS is ±10 m. Mark in the middle of each turn, with 20 m or more between points.",
                 color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall,
             )
             Spacer(Modifier.height(16.dp))
@@ -354,10 +354,10 @@ fun RecordRoute(vm: AppViewModel, onClose: () -> Unit) {
         AlertDialog(
             onDismissRequest = { confirmDiscard = false },
             containerColor = Tokens.Card,
-            title = { Text("Buang rekaman?") },
-            text = { Text("${draft.size} titik akan hilang.", color = AppTheme.extra.muted) },
-            confirmButton = { TextButton(onClick = { vm.discardDraft(); confirmDiscard = false; onClose() }) { Text("Buang", color = Tokens.Wrong) } },
-            dismissButton = { TextButton(onClick = { confirmDiscard = false }) { Text("Batal") } },
+            title = { Text("Discard recording?") },
+            text = { Text("${draft.size} points will be lost.", color = AppTheme.extra.muted) },
+            confirmButton = { TextButton(onClick = { vm.discardDraft(); confirmDiscard = false; onClose() }) { Text("Discard", color = Tokens.Wrong) } },
+            dismissButton = { TextButton(onClick = { confirmDiscard = false }) { Text("Cancel") } },
         )
     }
 }
@@ -366,9 +366,9 @@ fun RecordRoute(vm: AppViewModel, onClose: () -> Unit) {
 private fun GpsCard(fix: Fix?) {
     val acc = fix?.accuracyM
     val (text, fg, bg) = when {
-        acc == null -> Triple("Mencari…", Tokens.Muted, Tokens.AccentSoft)
+        acc == null -> Triple("Searching…", Tokens.Muted, Tokens.AccentSoft)
         acc <= 15 -> Triple("±${acc.roundToInt()} m", Tokens.Correct, Tokens.CorrectBg)
-        else -> Triple("Lemah ±${acc.roundToInt()} m", Tokens.Wrong, Tokens.WrongBg)
+        else -> Triple("Weak ±${acc.roundToInt()} m", Tokens.Wrong, Tokens.WrongBg)
     }
     Card {
         Row(verticalAlignment = Alignment.CenterVertically) {

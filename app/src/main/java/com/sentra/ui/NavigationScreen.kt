@@ -75,12 +75,12 @@ const val WALK_SPEED_MS = 0.9
 
 /** "350 m" or "1,8 km". */
 fun distanceText(m: Double): String =
-    if (m < 1000) "${m.roundToInt()} m" else String.format(Locale("id", "ID"), "%.1f km", m / 1000)
+    if (m < 1000) "${m.roundToInt()} m" else String.format(Locale.US, "%.1f km", m / 1000)
 
 /** "~ 7 mnt" for [m] metres at [WALK_SPEED_MS]. */
 fun etaText(m: Double): String {
     val min = ceil(m / WALK_SPEED_MS / 60).toInt().coerceAtLeast(1)
-    return if (min < 60) "~ $min mnt" else "~ ${min / 60} j ${min % 60} mnt"
+    return if (min < 60) "~ $min min" else "~ ${min / 60} h ${min % 60} min"
 }
 
 /** Metres still to walk: to the target point, then along the rest of the route. */
@@ -91,22 +91,22 @@ fun remainingM(nav: NavSnapshot, route: RouteEntity?): Double? {
     return d + points.drop(from).zipWithNext { a, b -> Geo.distanceM(a, b) }.sum()
 }
 
-/** What to do now, in the words of the mockups: "Belok kiri / segera", "Lurus / sejauh 500 m". */
+/** What to do now, in the words of the mockups: "Turn left / now", "Straight / for 500 m". */
 fun navInstruction(nav: NavSnapshot, route: RouteEntity?): Instruction {
-    if (nav.state == NavState.OFF_ROUTE) return Instruction(Icons.Rounded.WarningAmber, "Keluar rute", "Berhenti, sleeve memberi tanda stop")
-    val d = nav.distanceM ?: return Instruction(Icons.Rounded.MyLocation, "Menunggu GPS…", route?.name ?: "")
+    if (nav.state == NavState.OFF_ROUTE) return Instruction(Icons.Rounded.WarningAmber, "Off route", "Stop, the sleeve signals stop")
+    val d = nav.distanceM ?: return Instruction(Icons.Rounded.MyLocation, "Waiting for GPS…", route?.name ?: "")
     val soon = d < 15
     val atDestination = nav.targetNumber == nav.totalPoints
     return when {
-        atDestination -> Instruction(Icons.Rounded.Flag, if (soon) "Hampir sampai" else "Lurus ke tujuan", "sejauh ${distanceText(d)}")
-        nav.turnAtTarget == Turn.LEFT -> Instruction(Icons.Rounded.TurnLeft, "Belok kiri", if (soon) "segera" else "dalam ${distanceText(d)}")
-        nav.turnAtTarget == Turn.RIGHT -> Instruction(Icons.Rounded.TurnRight, "Belok kanan", if (soon) "segera" else "dalam ${distanceText(d)}")
-        nav.turnAtTarget == Turn.U_TURN -> Instruction(Icons.Rounded.UTurnLeft, "Putar balik", if (soon) "segera" else "dalam ${distanceText(d)}")
-        else -> Instruction(Icons.Rounded.Straight, "Lurus", "sejauh ${distanceText(d)}")
+        atDestination -> Instruction(Icons.Rounded.Flag, if (soon) "Almost there" else "Straight to destination", "for ${distanceText(d)}")
+        nav.turnAtTarget == Turn.LEFT -> Instruction(Icons.Rounded.TurnLeft, "Turn left", if (soon) "now" else "in ${distanceText(d)}")
+        nav.turnAtTarget == Turn.RIGHT -> Instruction(Icons.Rounded.TurnRight, "Turn right", if (soon) "now" else "in ${distanceText(d)}")
+        nav.turnAtTarget == Turn.U_TURN -> Instruction(Icons.Rounded.UTurnLeft, "Turn around", if (soon) "now" else "in ${distanceText(d)}")
+        else -> Instruction(Icons.Rounded.Straight, "Straight", "for ${distanceText(d)}")
     }
 }
 
-/** Navigasi: the instruction on top, the map, and time and distance left. Over everything during a trip. */
+/** Navigation: the instruction on top, the map, and time and distance left. Over everything during a trip. */
 @Composable
 fun NavigationScreen(vm: AppViewModel, onBack: () -> Unit) {
     val nav by vm.nav.collectAsState()
@@ -120,7 +120,7 @@ fun NavigationScreen(vm: AppViewModel, onBack: () -> Unit) {
 
     PageBackground {
         Column(Modifier.fillMaxSize().navigationBarsPadding()) {
-            TopBar("Navigasi", onBack)
+            TopBar("Navigation", onBack)
             Card(
                 Modifier.padding(horizontal = 16.dp),
                 background = if (offRoute) Tokens.WrongBg else Tokens.Card,
@@ -150,28 +150,28 @@ fun NavigationScreen(vm: AppViewModel, onBack: () -> Unit) {
                         onClick = { follow = true },
                         containerColor = Tokens.Card, contentColor = Tokens.Blue,
                         modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp),
-                    ) { Icon(Icons.Rounded.MyLocation, contentDescription = "Ke posisi saya") }
+                    ) { Icon(Icons.Rounded.MyLocation, contentDescription = "Go to my position") }
                 }
             }
             Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Card(padding = 12.dp) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         val left = remainingM(nav, route)
-                        Stat(Icons.Rounded.Schedule, left?.let(::etaText) ?: "—", "lagi", Modifier.weight(1f))
+                        Stat(Icons.Rounded.Schedule, left?.let(::etaText) ?: "—", "left", Modifier.weight(1f))
                         Box(Modifier.width(1.dp).height(36.dp).background(Tokens.Border))
                         Spacer(Modifier.width(12.dp))
-                        Stat(Icons.Rounded.Route, left?.let(::distanceText) ?: "—", "dari tujuan", Modifier.weight(1f))
+                        Stat(Icons.Rounded.Route, left?.let(::distanceText) ?: "—", "to destination", Modifier.weight(1f))
                         SpeakButton(vm)
                     }
                     GpsLine(fix?.accuracyM, settings.simulatedGps)
                     if (settings.simulatedGps) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Simulasikan keluar rute", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                            Text("Simulate going off route", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                             Switch(checked = detour, onCheckedChange = vm::setDetour)
                         }
                     }
                 }
-                SoftButton("Hentikan navigasi", vm::stopNavigation, Modifier.fillMaxWidth(), color = Tokens.Wrong, background = Tokens.WrongBg)
+                SoftButton("Stop navigation", vm::stopNavigation, Modifier.fillMaxWidth(), color = Tokens.Wrong, background = Tokens.WrongBg)
                 Spacer(Modifier.height(4.dp))
             }
         }
@@ -195,9 +195,9 @@ fun GpsLine(accuracyM: Float?, simulated: Boolean) {
     val weak = !simulated && (accuracyM == null || accuracyM > 20)
     Text(
         when {
-            simulated -> "GPS simulasi"
-            accuracyM == null -> "Belum ada sinyal GPS"
-            accuracyM > 20 -> "GPS lemah (±${accuracyM.roundToInt()} m), posisi diabaikan"
+            simulated -> "Simulated GPS"
+            accuracyM == null -> "No GPS signal yet"
+            accuracyM > 20 -> "Weak GPS (±${accuracyM.roundToInt()} m), position ignored"
             else -> "GPS ±${accuracyM.roundToInt()} m"
         },
         color = if (weak) Tokens.Warn else AppTheme.extra.muted,
@@ -206,7 +206,7 @@ fun GpsLine(accuracyM: Float?, simulated: Boolean) {
     )
 }
 
-// --- Tiba di Tujuan! ---------------------------------------------------------------------------------
+// --- You've Arrived! ---------------------------------------------------------------------------------
 
 @Composable
 fun ArrivedScreen(vm: AppViewModel, onDone: () -> Unit) {
@@ -227,13 +227,13 @@ fun ArrivedScreen(vm: AppViewModel, onDone: () -> Unit) {
                 Modifier.semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Assertive; heading() },
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text("Tiba di Tujuan!", fontSize = 32.sp, fontWeight = FontWeight.Black, color = Tokens.Text, textAlign = TextAlign.Center)
+                Text("You've Arrived!", fontSize = 32.sp, fontWeight = FontWeight.Black, color = Tokens.Text, textAlign = TextAlign.Center)
                 route?.let { Text(it.name, style = MaterialTheme.typography.titleMedium, color = Tokens.Accent, textAlign = TextAlign.Center) }
             }
             Spacer(Modifier.height(24.dp))
             Hill(Modifier.fillMaxWidth().height(170.dp))
             Spacer(Modifier.weight(1f))
-            PrimaryButton("Selesai", onDone)
+            PrimaryButton("Done", onDone)
         }
     }
 }

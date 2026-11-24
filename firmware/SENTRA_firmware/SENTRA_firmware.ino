@@ -16,7 +16,7 @@
  *    1. Reads the obstacle distance from the ultrasonic sensor.
  *    2. Takes navigation commands from the Android app over BLE
  *       (FORWARD, LEFT, RIGHT, STOP, ARRIVED, IDLE, TEST, LOW, HIGH, PING).
- *    3. Drives 3 vibration motors (KIRI, TENGAH, KANAN) through a ULN2003A.
+ *    3. Drives 3 vibration motors (LEFT, CENTER, RIGHT) through a ULN2003A.
  *    4. An obstacle warning ALWAYS wins over navigation (§6.3).
  *
  *  Everything is non-blocking (millis(), no delay() in loop()).
@@ -133,10 +133,10 @@ const char* navName(NavCmd n) {
 
 const char* zoneName(Zone z) {
   switch (z) {
-    case ZONE_FAR:    return "JAUH";
-    case ZONE_NEAR:   return "DEKAT";
-    case ZONE_DANGER: return "BAHAYA";
-    default:          return "AMAN";
+    case ZONE_FAR:    return "FAR";
+    case ZONE_NEAR:   return "NEAR";
+    case ZONE_DANGER: return "DANGER";
+    default:          return "CLEAR";
   }
 }
 
@@ -338,7 +338,7 @@ void updateHaptics(unsigned long now) {
     default: break;
   }
 
-  // --- Layer 3: one-shot EFFECT (except in BAHAYA) ---
+  // --- Layer 3: one-shot EFFECT (except in DANGER) ---
   if (fx.active) {
     unsigned long tf = now - fx.t0;
     unsigned long period = (unsigned long)fx.onMs + fx.offMs;
@@ -445,7 +445,7 @@ void debugPrint(unsigned long now) {
   static unsigned long last = 0;
   if (now - last < DEBUG_INTERVAL_MS) return;
   last = now;
-  Serial.printf("jarak=%4d cm | zona=%-6s | nav=%-7s | ble=%s\n",
+  Serial.printf("dist=%4d cm | zone=%-6s | nav=%-7s | ble=%s\n",
                 distanceCm, zoneName(zone), navName(nav),
                 deviceConnected ? "ON" : "off");
 }

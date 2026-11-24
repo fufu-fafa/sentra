@@ -67,7 +67,7 @@ fun OsmMap(content: MapContent, modifier: Modifier = Modifier, follow: Boolean =
             controller.setZoom(17.5)
             // Bandung until the first position arrives, so the map never opens on the ocean at 0°, 0°.
             controller.setCenter(OsmPoint(-6.9025, 107.6188))
-            contentDescription = "Peta"
+            contentDescription = "Map"
         }
     }
     DisposableEffect(lifecycle) {
@@ -136,9 +136,9 @@ private class MapState {
                 icon = dot(if (end) MapContent.PINK else MapContent.BLUE, Color.WHITE, (if (end) 22 else if (i == 0) 16 else 12) * density, (if (end) 4 else 2) * density, filled = end)
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                 title = when (i) {
-                    0 -> "Titik mulai"
-                    c.route.lastIndex -> "Tujuan"
-                    else -> "Titik ${i + 1}"
+                    0 -> "Start point"
+                    c.route.lastIndex -> "Destination"
+                    else -> "Point ${i + 1}"
                 }
             }
         }

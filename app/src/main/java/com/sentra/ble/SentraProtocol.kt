@@ -51,16 +51,16 @@ object SentraProtocol {
 
 /** Tabel 19: what the app can tell the sleeve. The enum name is the text sent. */
 enum class SleeveCommand(val label: String) {
-    FORWARD("Lurus"),
-    LEFT("Kiri"),
-    RIGHT("Kanan"),
+    FORWARD("Straight"),
+    LEFT("Left"),
+    RIGHT("Right"),
     STOP("Stop"),
-    ARRIVED("Tiba"),
+    ARRIVED("Arrived"),
     /** Stops the navigation pattern without a vibration. */
-    IDLE("Diam"),
-    TEST("Tes"),
-    LOW("Lemah"),
-    HIGH("Kuat"),
+    IDLE("Idle"),
+    TEST("Test"),
+    LOW("Weak"),
+    HIGH("Strong"),
     /** "The app is alive". The sleeve does not answer it with an ACK. */
     PING("Ping");
 

@@ -25,7 +25,7 @@ class BleScanner(private val context: Context) {
         val adapter = context.getSystemService(BluetoothManager::class.java)?.adapter
         val scanner = adapter?.bluetoothLeScanner
         if (adapter?.isEnabled != true || scanner == null) {
-            close(IllegalStateException("Bluetooth mati"))
+            close(IllegalStateException("Bluetooth is off"))
             return@callbackFlow
         }
         val service = ParcelUuid(SentraProtocol.SERVICE)
@@ -38,7 +38,7 @@ class BleScanner(private val context: Context) {
             }
 
             override fun onScanFailed(errorCode: Int) {
-                close(IllegalStateException("Pencarian gagal ($errorCode)"))
+                close(IllegalStateException("Scan failed ($errorCode)"))
             }
         }
         // No ScanFilter: the name sits in the scan response and a filter can only match it exactly.

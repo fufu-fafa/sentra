@@ -18,8 +18,8 @@ types, so it is fully unit tested. Part of [`com.sentra`](../README.md).
 `NavAction`s for the caller to carry out. `info()` is the sentence read out on a short button press
 or the speaker button.
 
-Thresholds (companion object): announce a turn within `R_UMUMKAN` 15 m, reach a point within
-`R_TIBA` 6 m, off route after `R_KELUAR` 15 m farther than the closest approach (with 5 m
+Thresholds (companion object): announce a turn within `R_ANNOUNCE` 15 m, reach a point within
+`R_ARRIVE` 6 m, off route after `R_OFF_ROUTE` 15 m farther than the closest approach (with 5 m
 hysteresis), ignore fixes worse than 20 m (15 m when recording a route), and send FORWARD 4 s after
 passing a point.
 

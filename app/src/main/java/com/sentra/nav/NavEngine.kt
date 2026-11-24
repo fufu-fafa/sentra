@@ -33,9 +33,9 @@ data class NavSnapshot(
  * tested. Feed it GPS fixes and a clock; it answers with commands, voice prompts and reports.
  *
  * Two things the pseudo-blocks leave open are settled here:
- *  - "keluar rute" is sent once, not on every fix, and when the child is back within the limit the
+ *  - "off route" is sent once, not on every fix, and when the child is back within the limit the
  *    engine says so and resumes (the blocks would repeat STOP forever).
- *  - the delayed FORWARD after a point (ClockLurus) is dropped if the next turn was announced in
+ *  - the delayed FORWARD after a point (the §9.5 ClockLurus timer) is dropped if the next turn was announced in
  *    the meantime, so it can't cancel that turn's vibration.
  */
 class NavEngine(private val route: List<GeoPoint>, private val routeName: String = "") {
@@ -74,11 +74,11 @@ class NavEngine(private val route: List<GeoPoint>, private val routeName: String
         minDistance = Double.MAX_VALUE
         lastDistance = null
         forwardDueAt = null
-        val name = if (routeName.isBlank()) "" else " di rute $routeName"
+        val name = if (routeName.isBlank()) "" else " on route $routeName"
         return listOf(
             NavAction.Send(SleeveCommand.FORWARD),
-            NavAction.Speak("Navigasi dimulai"),
-            NavAction.Report("NAV_START", "Mulai jalan$name, ${route.size} titik."),
+            NavAction.Speak("Navigation started"),
+            NavAction.Report("NAV_START", "Started walking$name, ${route.size} points."),
         )
     }
 
@@ -91,44 +91,44 @@ class NavEngine(private val route: List<GeoPoint>, private val routeName: String
         if (d < minDistance) minDistance = d
 
         if (state == NavState.OFF_ROUTE) {
-            if (d > minDistance + R_KELUAR - OFF_ROUTE_HYSTERESIS_M) return out
+            if (d > minDistance + R_OFF_ROUTE - OFF_ROUTE_HYSTERESIS_M) return out
             state = NavState.NAVIGATING
             out += NavAction.Send(currentCommand ?: SleeveCommand.FORWARD)
-            out += NavAction.Speak("Kamu sudah kembali ke rute")
-            out += NavAction.Report("KEMBALI_RUTE", "Sudah kembali ke rute, ${d.roundToInt()} m dari titik $targetLabel.")
+            out += NavAction.Speak("You are back on the route")
+            out += NavAction.Report("BACK_ON_ROUTE", "Back on route, ${d.roundToInt()} m from point $targetLabel.")
         }
 
         if (idx == route.lastIndex) {
-            if (d < R_TIBA) {
+            if (d < R_ARRIVE) {
                 state = NavState.ARRIVED
                 forwardDueAt = null
                 out += NavAction.Send(SleeveCommand.ARRIVED)
-                out += NavAction.Speak("Kamu sudah sampai")
-                out += NavAction.Report("ARRIVED", "Sudah sampai di tujuan${if (routeName.isBlank()) "" else " rute $routeName"}.")
+                out += NavAction.Speak("You have arrived")
+                out += NavAction.Report("ARRIVED", "Arrived at the destination${if (routeName.isBlank()) "" else " of route $routeName"}.")
                 return out
             }
         } else {
             val turn = turns[idx]
-            if (d < R_UMUMKAN && !announced && turn != null && turn != Turn.STRAIGHT) {
+            if (d < R_ANNOUNCE && !announced && turn != null && turn != Turn.STRAIGHT) {
                 announced = true
                 forwardDueAt = null
                 out += NavAction.Send(commandFor(turn)!!)
                 when (turn) {
                     Turn.LEFT -> {
-                        out += NavAction.Speak("Sebentar lagi belok kiri")
-                        out += NavAction.Report("BELOK_KIRI", "Belok kiri di titik $targetLabel.")
+                        out += NavAction.Speak("Turn left soon")
+                        out += NavAction.Report("TURN_LEFT", "Turn left at point $targetLabel.")
                     }
                     Turn.RIGHT -> {
-                        out += NavAction.Speak("Sebentar lagi belok kanan")
-                        out += NavAction.Report("BELOK_KANAN", "Belok kanan di titik $targetLabel.")
+                        out += NavAction.Speak("Turn right soon")
+                        out += NavAction.Report("TURN_RIGHT", "Turn right at point $targetLabel.")
                     }
                     else -> {
-                        out += NavAction.Speak("Putar balik")
-                        out += NavAction.Report("PUTAR_BALIK", "Putar balik di titik $targetLabel.")
+                        out += NavAction.Speak("Turn around")
+                        out += NavAction.Report("U_TURN", "U-turn at point $targetLabel.")
                     }
                 }
             }
-            if (d < R_TIBA) {
+            if (d < R_ARRIVE) {
                 idx++
                 announced = false
                 minDistance = Double.MAX_VALUE
@@ -138,12 +138,12 @@ class NavEngine(private val route: List<GeoPoint>, private val routeName: String
             }
         }
 
-        if (d > minDistance + R_KELUAR) {
+        if (d > minDistance + R_OFF_ROUTE) {
             state = NavState.OFF_ROUTE
             forwardDueAt = null
             out += NavAction.Send(SleeveCommand.STOP)
-            out += NavAction.Speak("Kamu keluar rute, berhenti dan minta bantuan")
-            out += NavAction.Report("KELUAR_RUTE", "Keluar rute: ${d.roundToInt()} m dari titik $targetLabel dan makin jauh. Sleeve memberi tanda berhenti.")
+            out += NavAction.Speak("You are off the route, stop and ask for help")
+            out += NavAction.Report("OFF_ROUTE", "Off route: ${d.roundToInt()} m from point $targetLabel and moving away. The sleeve signals stop.")
         }
         return out
     }
@@ -163,8 +163,8 @@ class NavEngine(private val route: List<GeoPoint>, private val routeName: String
         forwardDueAt = null
         return listOf(
             NavAction.Send(SleeveCommand.IDLE),
-            NavAction.Speak("Navigasi dihentikan"),
-            NavAction.Report("NAV_STOP", "Navigasi dihentikan di HP anak sebelum sampai tujuan."),
+            NavAction.Speak("Navigation stopped"),
+            NavAction.Report("NAV_STOP", "Navigation stopped on the child's phone before reaching the destination."),
         )
     }
 
@@ -172,15 +172,15 @@ class NavEngine(private val route: List<GeoPoint>, private val routeName: String
     fun info(): String {
         val d = lastDistance
         return when {
-            state == NavState.ARRIVED -> "Kamu sudah sampai"
-            !snapshot.active -> "Navigasi belum dimulai"
-            d == null -> "Titik berikutnya $targetLabel, menunggu sinyal GPS"
-            state == NavState.OFF_ROUTE -> "Kamu keluar rute. Titik berikutnya $targetLabel, ${d.roundToInt()} meter lagi"
-            else -> "Titik berikutnya $targetLabel, ${d.roundToInt()} meter lagi"
+            state == NavState.ARRIVED -> "You have arrived"
+            !snapshot.active -> "Navigation has not started"
+            d == null -> "Next point $targetLabel, waiting for GPS signal"
+            state == NavState.OFF_ROUTE -> "You are off the route. Next point $targetLabel, ${d.roundToInt()} meters to go"
+            else -> "Next point $targetLabel, ${d.roundToInt()} meters to go"
         }
     }
 
-    private val targetLabel: String get() = if (idx == route.lastIndex) "tujuan" else "${idx + 1}"
+    private val targetLabel: String get() = if (idx == route.lastIndex) "destination" else "${idx + 1}"
 
     private fun commandFor(turn: Turn?): SleeveCommand? = when (turn) {
         Turn.LEFT -> SleeveCommand.LEFT
@@ -191,11 +191,11 @@ class NavEngine(private val route: List<GeoPoint>, private val routeName: String
 
     companion object {
         /** Announce a turn this far before its point. */
-        const val R_UMUMKAN = 15.0
+        const val R_ANNOUNCE = 15.0
         /** A point counts as reached inside this radius. */
-        const val R_TIBA = 6.0
+        const val R_ARRIVE = 6.0
         /** Off route when this much farther from the target than the closest the child has been. */
-        const val R_KELUAR = 15.0
+        const val R_OFF_ROUTE = 15.0
         const val OFF_ROUTE_HYSTERESIS_M = 5.0
         /** GPS fixes worse than this are ignored while navigating. */
         const val MAX_ACCURACY_M = 20f

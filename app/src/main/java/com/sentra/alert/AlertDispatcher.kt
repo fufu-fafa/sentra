@@ -25,8 +25,8 @@ class AlertDispatcher(private val context: Context) {
 
     fun createChannels() {
         val nm = context.getSystemService(NotificationManager::class.java)
-        val alarm = NotificationChannel(CH_ALARM, "Alarm anak", NotificationManager.IMPORTANCE_HIGH).apply {
-            description = "Anak keluar rute, sleeve terputus, atau HP anak offline saat navigasi"
+        val alarm = NotificationChannel(CH_ALARM, "Child alarms", NotificationManager.IMPORTANCE_HIGH).apply {
+            description = "Child off route, sleeve disconnected, or child's phone offline during navigation"
             setSound(
                 RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM),
                 AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).build(),
@@ -35,22 +35,22 @@ class AlertDispatcher(private val context: Context) {
             vibrationPattern = longArrayOf(0, 800, 400, 800, 400, 800)
             setBypassDnd(true)
         }
-        val arrival = NotificationChannel(CH_ARRIVAL, "Sampai tujuan", NotificationManager.IMPORTANCE_HIGH).apply {
-            description = "Berbunyi sekali saat anak sampai, dan untuk tes alarm"
+        val arrival = NotificationChannel(CH_ARRIVAL, "Arrived", NotificationManager.IMPORTANCE_HIGH).apply {
+            description = "Rings once when the child arrives, and for test alarms"
         }
-        val info = NotificationChannel(CH_INFO, "Kabar perjalanan", NotificationManager.IMPORTANCE_DEFAULT).apply {
-            description = "Anak mulai jalan, HP anak lama tidak ada kabar"
+        val info = NotificationChannel(CH_INFO, "Trip updates", NotificationManager.IMPORTANCE_DEFAULT).apply {
+            description = "Child started walking, child's phone has gone quiet"
         }
-        val service = NotificationChannel(CH_SERVICE, "Sambungan", NotificationManager.IMPORTANCE_LOW).apply {
-            description = "Tampil selama aplikasi menjaga sambungan ke sleeve atau ke relay"
+        val service = NotificationChannel(CH_SERVICE, "Connection", NotificationManager.IMPORTANCE_LOW).apply {
+            description = "Shown while the app keeps the connection to the sleeve or the relay"
         }
         nm.createNotificationChannels(listOf(alarm, arrival, info, service))
     }
 
-    /** KELUAR_RUTE, TERPUTUS or OFFLINE: full-screen, rings until acknowledged. */
+    /** OFF_ROUTE, SLEEVE_DISCONNECTED or OFFLINE: full-screen, rings until acknowledged. */
     fun careAlarm(e: RemoteEvent, child: String, escalated: Boolean) {
-        val title = "${e.type.label} — ${child.ifBlank { "Anak" }}"
-        val text = (if (escalated) "Belum ada yang melihat. " else "") + e.message
+        val title = "${e.type.label} — ${child.ifBlank { "Child" }}"
+        val text = (if (escalated) "Nobody has seen this yet. " else "") + e.message
         val open = alarmScreen(e, child)
         val n = NotificationCompat.Builder(context, CH_ALARM)
             .setSmallIcon(R.drawable.ic_stat_sentra)
@@ -62,7 +62,7 @@ class AlertDispatcher(private val context: Context) {
             .setFullScreenIntent(open, true)
             .setContentIntent(open)
             .setOngoing(true)
-            .addAction(0, "Sudah saya lihat", ackIntent(e.id))
+            .addAction(0, "I've seen it", ackIntent(e.id))
             .build()
         n.flags = n.flags or android.app.Notification.FLAG_INSISTENT // keep ringing until acknowledged
         post(alarmId(e.id), n)
@@ -75,7 +75,7 @@ class AlertDispatcher(private val context: Context) {
         val id = INFO_BASE + (e.id % 100_000).toInt()
         val n = NotificationCompat.Builder(context, CH_ARRIVAL)
             .setSmallIcon(R.drawable.ic_stat_sentra)
-            .setContentTitle("${e.type.label} — ${child.ifBlank { "Anak" }}")
+            .setContentTitle("${e.type.label} — ${child.ifBlank { "Child" }}")
             .setContentText(e.message)
             .setStyle(NotificationCompat.BigTextStyle().bigText(e.message))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -90,7 +90,7 @@ class AlertDispatcher(private val context: Context) {
         val id = INFO_BASE + (e.id % 100_000).toInt()
         val n = NotificationCompat.Builder(context, CH_INFO)
             .setSmallIcon(R.drawable.ic_stat_sentra)
-            .setContentTitle("${e.type.label} — ${child.ifBlank { "Anak" }}")
+            .setContentTitle("${e.type.label} — ${child.ifBlank { "Child" }}")
             .setContentText(e.message)
             .setStyle(NotificationCompat.BigTextStyle().bigText(e.message))
             .setContentIntent(openApp(id))
@@ -105,8 +105,8 @@ class AlertDispatcher(private val context: Context) {
     fun notifyChildOffline(childId: Long, name: String) {
         val n = NotificationCompat.Builder(context, CH_INFO)
             .setSmallIcon(R.drawable.ic_stat_sentra)
-            .setContentTitle("HP ${name.ifBlank { "anak" }} offline")
-            .setContentText("Tidak ada kabar selama 15 menit. Lokasi dan alarm tidak sampai sebelum HP itu online lagi.")
+            .setContentTitle("${name.ifBlank { "Child" }}'s phone offline")
+            .setContentText("No word for 15 minutes. Location and alarms won't arrive until that phone is online again.")
             .setContentIntent(openApp(OFFLINE_BASE + childId.toInt()))
             .setAutoCancel(true)
             .build()

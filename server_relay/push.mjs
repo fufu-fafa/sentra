@@ -11,9 +11,9 @@ import { fileURLToPath } from 'node:url';
 const KEY_PATH = process.env.FIREBASE_KEY ?? fileURLToPath(new URL('./firebase-service-account.json', import.meta.url));
 
 /** Which stream messages are worth waking a phone for; the rest only update an open dashboard. */
-// KELUAR_RUTE, TERPUTUS and OFFLINE are alarms (data.alarm, high priority); the others arrive as
+// OFF_ROUTE, SLEEVE_DISCONNECTED and OFFLINE are alarms (data.alarm, high priority); the others arrive as
 // normal-priority notifications. Turns and reconnects only show in the history.
-const PUSH_TYPES = new Set(['KELUAR_RUTE', 'TERPUTUS', 'OFFLINE', 'ARRIVED', 'NAV_START', 'TEST']);
+const PUSH_TYPES = new Set(['OFF_ROUTE', 'SLEEVE_DISCONNECTED', 'OFFLINE', 'ARRIVED', 'NAV_START', 'TEST']);
 
 /** Tokens FCM says will never work again; anything else (network, quota) is worth retrying later. */
 const DEAD_TOKEN = new Set([

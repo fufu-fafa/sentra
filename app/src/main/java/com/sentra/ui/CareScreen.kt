@@ -107,15 +107,15 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 private enum class CareTab(val label: String, val icon: ImageVector) {
-    Home("Beranda", Icons.Rounded.Home),
-    History("Riwayat", Icons.Rounded.Schedule),
-    Alerts("Alarm", Icons.Rounded.Notifications),
-    Settings("Setelan", Icons.Rounded.Settings),
+    Home("Home", Icons.Rounded.Home),
+    History("History", Icons.Rounded.Schedule),
+    Alerts("Alerts", Icons.Rounded.Notifications),
+    Settings("Settings", Icons.Rounded.Settings),
 }
 
-private val ID = Locale("id", "ID")
+private val EN = Locale.ENGLISH
 
-/** Mode Orang tua: SENTRA Care. Link with an invite code, then dashboard, live map, trips and alarms. */
+/** Parent mode: SENTRA Care. Link with an invite code, then dashboard, live map, trips and alarms. */
 @Composable
 fun CareScreen(vm: AppViewModel) {
     val settings by vm.settings.collectAsState()
@@ -140,7 +140,7 @@ fun CareScreen(vm: AppViewModel) {
                 }
                 Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     LinkCard(vm, settings.relayUrl, settings.parentName, onCancel = null) {}
-                    SoftButton("Pakai HP ini sebagai HP anak", { vm.setMode(AppMode.CHILD) }, Modifier.fillMaxWidth(), icon = Icons.Rounded.SwapHoriz)
+                    SoftButton("Use this phone as the child's phone", { vm.setMode(AppMode.CHILD) }, Modifier.fillMaxWidth(), icon = Icons.Rounded.SwapHoriz)
                     Spacer(Modifier.height(16.dp))
                 }
             }
@@ -161,7 +161,7 @@ fun CareScreen(vm: AppViewModel) {
         containerColor = Tokens.Bg,
         contentWindowInsets = WindowInsets(0),
         bottomBar = {
-            BottomTabs(CareTab.entries.map { Triple(if (it == CareTab.Alerts && unseen > 0) "Alarm ($unseen)" else it.label, it.icon, tab == it) }) {
+            BottomTabs(CareTab.entries.map { Triple(if (it == CareTab.Alerts && unseen > 0) "Alerts ($unseen)" else it.label, it.icon, tab == it) }) {
                 tab = CareTab.entries[it]
             }
         },
@@ -192,18 +192,18 @@ fun CareScreen(vm: AppViewModel) {
 @Composable
 private fun NoChild() {
     Card(Modifier.padding(16.dp)) {
-        Text("Belum mengikuti siapa pun. Hubungkan ke HP anak di tab Setelan.", color = AppTheme.extra.muted)
+        Text("Not following anyone yet. Link to the child's phone in the Settings tab.", color = AppTheme.extra.muted)
     }
 }
 
 private data class Look(val text: String, val fg: Color, val bg: Color)
 
 private fun childLook(c: WatchedChild): Look = when {
-    c.offline -> Look("HP offline", Tokens.Wrong, Tokens.WrongBg)
-    c.navigating && c.status.navState == "OFF_ROUTE" -> Look("Keluar rute", Tokens.Wrong, Tokens.WrongBg)
-    c.navigating -> Look("Di perjalanan", Tokens.Correct, Tokens.CorrectBg)
+    c.offline -> Look("Phone offline", Tokens.Wrong, Tokens.WrongBg)
+    c.navigating && c.status.navState == "OFF_ROUTE" -> Look("Off route", Tokens.Wrong, Tokens.WrongBg)
+    c.navigating -> Look("On the way", Tokens.Correct, Tokens.CorrectBg)
     c.lastHeartbeat != null -> Look("Online", Tokens.Correct, Tokens.CorrectBg)
-    else -> Look("Belum ada kabar", Tokens.Muted, Tokens.AccentSoft)
+    else -> Look("No word yet", Tokens.Muted, Tokens.AccentSoft)
 }
 
 // --- Dashboard -----------------------------------------------------------------------------------
@@ -227,7 +227,7 @@ private fun Dashboard(
                 BadgedBox(badge = { if (unseen > 0) Badge(containerColor = Tokens.Pink) { Text("$unseen") } }) {
                     Icon(
                         if (unseen > 0) Icons.Rounded.NotificationsActive else Icons.Rounded.Notifications,
-                        contentDescription = if (unseen > 0) "$unseen alarm belum dilihat" else "Alarm",
+                        contentDescription = if (unseen > 0) "$unseen unseen alerts" else "Alerts",
                         tint = Tokens.Pink,
                     )
                 }
@@ -249,8 +249,8 @@ private fun Dashboard(
                             Text(child.name, style = MaterialTheme.typography.titleLarge, color = Tokens.Text)
                             StatusDot(look.text, look.fg)
                             Text(
-                                (child.lastHeartbeat?.let { "Kabar terakhir ${ago(it, now)}" } ?: "Belum ada kabar") +
-                                    if (child.offline) " · peta menunjukkan lokasi terakhir" else "",
+                                (child.lastHeartbeat?.let { "Last heard ${ago(it, now)}" } ?: "No word yet") +
+                                    if (child.offline) " · map shows last known location" else "",
                                 color = if (child.offline) Tokens.Wrong else AppTheme.extra.muted,
                                 style = MaterialTheme.typography.bodySmall,
                             )
@@ -264,8 +264,8 @@ private fun Dashboard(
                         Column(Modifier.weight(1f)) {
                             Text("Status Sleeve", style = MaterialTheme.typography.titleMedium, color = Tokens.Text)
                             when (s.sleeveConnected) {
-                                true -> StatusDot("Tersambung", Tokens.Correct)
-                                false -> StatusDot("Terputus", Tokens.Wrong)
+                                true -> StatusDot("Connected", Tokens.Correct)
+                                false -> StatusDot("Disconnected", Tokens.Wrong)
                                 null -> Text("—", color = AppTheme.extra.muted)
                             }
                             s.batteryPct?.let { BatteryBar(it) }
@@ -277,31 +277,31 @@ private fun Dashboard(
                         IconBubble(Icons.Rounded.Navigation, Tokens.Accent, Tokens.AccentSoft, 52.dp)
                         Spacer(Modifier.width(14.dp))
                         Column(Modifier.weight(1f).semantics(mergeDescendants = true) {}) {
-                            Text("Aktivitas Sekarang", style = MaterialTheme.typography.titleMedium, color = Tokens.Text)
+                            Text("Current Activity", style = MaterialTheme.typography.titleMedium, color = Tokens.Text)
                             Text(activityLine(child), style = MaterialTheme.typography.bodyMedium, color = Tokens.Text)
                             if (child.navigating) {
                                 s.nextPoint?.let { n ->
                                     Text(
-                                        "Titik $n dari ${s.totalPoints ?: "?"}" + (s.distanceM?.let { " · $it m lagi" } ?: ""),
+                                        "Point $n of ${s.totalPoints ?: "?"}" + (s.distanceM?.let { " · $it m to go" } ?: ""),
                                         style = MaterialTheme.typography.bodySmall, color = AppTheme.extra.muted,
                                     )
                                 }
                                 s.obstacleCm?.let { cm ->
-                                    Text(if (cm >= 999) "Rintangan: kosong" else "Rintangan: $cm cm", color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall)
+                                    Text(if (cm >= 999) "Obstacle: clear" else "Obstacle: $cm cm", color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall)
                                 }
                             }
-                            if (s.simulated) Text("Mode uji (simulasi)", color = Tokens.Warn, style = MaterialTheme.typography.bodySmall)
+                            if (s.simulated) Text("Test mode (simulated)", color = Tokens.Warn, style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
                 val open = child.events.filter { it.type.isAlarm && it.ackedAt == null }
                 if (open.isNotEmpty()) {
                     Card(background = Tokens.WrongBg, border = Tokens.Wrong) {
-                        SectionLabel("Alarm belum dilihat", icon = Icons.Rounded.WarningAmber, tint = Tokens.Wrong)
+                        SectionLabel("Unseen alerts", icon = Icons.Rounded.WarningAmber, tint = Tokens.Wrong)
                         open.take(3).forEach { e -> EventLine(e, showDate = true, now, vm::acknowledge) }
                     }
                 }
-                PrimaryButton("Lihat Peta Live", openMap, icon = Icons.Rounded.LocationOn, color = Tokens.Pink)
+                PrimaryButton("View Live Map", openMap, icon = Icons.Rounded.LocationOn, color = Tokens.Pink)
             }
             Card(padding = 12.dp) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -309,10 +309,10 @@ private fun Dashboard(
                     Spacer(Modifier.width(8.dp))
                     Text(settings.relayUrl, fontFamily = Mono, style = MaterialTheme.typography.bodySmall, color = AppTheme.extra.muted, modifier = Modifier.weight(1f))
                     when (stream) {
-                        StreamState.LIVE -> Pill("Langsung", Tokens.Correct, Tokens.CorrectBg, dot = true)
-                        StreamState.CONNECTING -> Pill("Menyambung…", Tokens.Muted, Tokens.AccentSoft)
+                        StreamState.LIVE -> Pill("Live", Tokens.Correct, Tokens.CorrectBg, dot = true)
+                        StreamState.CONNECTING -> Pill("Connecting…", Tokens.Muted, Tokens.AccentSoft)
                         StreamState.PUSH -> Pill("Push", Tokens.Correct, Tokens.CorrectBg)
-                        StreamState.OFF -> Pill("Mati", Tokens.Wrong, Tokens.WrongBg)
+                        StreamState.OFF -> Pill("Off", Tokens.Wrong, Tokens.WrongBg)
                     }
                 }
                 error?.let { Text(it, color = Tokens.Wrong, style = MaterialTheme.typography.bodySmall) }
@@ -325,16 +325,16 @@ private fun Dashboard(
 private fun activityLine(c: WatchedChild): String {
     val s = c.status
     return when {
-        c.navigating && s.navState == "OFF_ROUTE" -> "Keluar rute" + (s.routeName?.let { " menuju $it" } ?: "")
-        c.navigating -> "Menuju " + (s.routeName ?: "tujuan")
-        s.navState == "ARRIVED" -> "Sudah sampai" + (s.routeName?.let { " di $it" } ?: "")
-        else -> "Tidak sedang berjalan"
+        c.navigating && s.navState == "OFF_ROUTE" -> "Off route" + (s.routeName?.let { " to $it" } ?: "")
+        c.navigating -> "Heading to " + (s.routeName ?: "destination")
+        s.navState == "ARRIVED" -> "Arrived" + (s.routeName?.let { " at $it" } ?: "")
+        else -> "Not walking"
     }
 }
 
 @Composable
 private fun BatteryBar(pct: Int) {
-    Row(Modifier.padding(top = 4.dp).semantics(mergeDescendants = true) { contentDescription = "Baterai HP anak $pct persen" }, verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.padding(top = 4.dp).semantics(mergeDescendants = true) { contentDescription = "Child's phone battery $pct percent" }, verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.width(36.dp).height(10.dp).background(Tokens.AccentSoft, RoundedCornerShape(3.dp))) {
             Box(
                 Modifier.fillMaxWidth(pct.coerceIn(0, 100) / 100f).fillMaxHeight()
@@ -342,18 +342,18 @@ private fun BatteryBar(pct: Int) {
             )
         }
         Spacer(Modifier.width(6.dp))
-        Text("$pct% HP anak", style = MaterialTheme.typography.bodySmall, color = AppTheme.extra.muted)
+        Text("$pct% child's phone", style = MaterialTheme.typography.bodySmall, color = AppTheme.extra.muted)
     }
 }
 
-// --- Peta Live -----------------------------------------------------------------------------------
+// --- Live Map ------------------------------------------------------------------------------------
 
 @Composable
 private fun LiveMap(child: WatchedChild?, now: Long, onBack: () -> Unit) {
     var follow by rememberSaveable { mutableStateOf(true) }
     Column(Modifier.fillMaxSize().navigationBarsPadding()) {
-        TopBar("Peta Live", onBack) {
-            IconButton(onClick = { follow = true }) { Icon(Icons.Rounded.MyLocation, contentDescription = "Ke posisi anak", tint = Tokens.Text) }
+        TopBar("Live Map", onBack) {
+            IconButton(onClick = { follow = true }) { Icon(Icons.Rounded.MyLocation, contentDescription = "Go to child's position", tint = Tokens.Text) }
         }
         if (child == null) { NoChild(); return@Column }
         val loc = child.location
@@ -379,7 +379,7 @@ private fun LiveMap(child: WatchedChild?, now: Long, onBack: () -> Unit) {
                 SmallFloatingActionButton(
                     onClick = { follow = true }, containerColor = Tokens.Card, contentColor = Tokens.Blue,
                     modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp),
-                ) { Icon(Icons.Rounded.MyLocation, contentDescription = "Ke posisi anak") }
+                ) { Icon(Icons.Rounded.MyLocation, contentDescription = "Go to child's position") }
             }
         }
         // What the map means, in words: for TalkBack and at a glance.
@@ -393,12 +393,12 @@ private fun LiveMap(child: WatchedChild?, now: Long, onBack: () -> Unit) {
                     val s = child.status
                     if (child.navigating) {
                         Text(
-                            listOfNotNull(s.routeName?.let { "Rute $it" }, s.distanceM?.let { "$it m ke titik ${s.nextPoint ?: "berikut"}" }).joinToString(" · "),
+                            listOfNotNull(s.routeName?.let { "Route $it" }, s.distanceM?.let { "$it m to point ${s.nextPoint ?: "next"}" }).joinToString(" · "),
                             style = MaterialTheme.typography.bodyMedium, color = Tokens.Text,
                         )
                     }
                     Text(
-                        if (loc == null) "Belum ada lokasi" else "Lokasi ${ago(loc.at, now)}" + (loc.accuracyM?.let { " · ±${it.toInt()} m" } ?: ""),
+                        if (loc == null) "No location yet" else "Location ${ago(loc.at, now)}" + (loc.accuracyM?.let { " · ±${it.toInt()} m" } ?: ""),
                         color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall,
                     )
                 }
@@ -407,7 +407,7 @@ private fun LiveMap(child: WatchedChild?, now: Long, onBack: () -> Unit) {
     }
 }
 
-// --- Riwayat Perjalanan --------------------------------------------------------------------------
+// --- Trip History --------------------------------------------------------------------------------
 
 @Composable
 private fun TripHistory(child: WatchedChild?, now: Long, picker: @Composable () -> Unit) {
@@ -419,12 +419,12 @@ private fun TripHistory(child: WatchedChild?, now: Long, picker: @Composable () 
     val shown = trips.filter { it.startedAt >= period.from && it.startedAt < period.until }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        ScreenTitle("Riwayat Perjalanan", child?.name)
+        ScreenTitle("Trip History", child?.name)
         picker()
         if (child == null) { NoChild(); return@Column }
         Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(HistoryMode.ALL to "Semua", HistoryMode.DAY to "Hari ini", HistoryMode.WEEK to "Minggu ini").forEach { (m, label) ->
+                listOf(HistoryMode.ALL to "All", HistoryMode.DAY to "Today", HistoryMode.WEEK to "This week").forEach { (m, label) ->
                     Chip(if (mode == m && offset != 0) period.title else label, Modifier.weight(1f), selected = mode == m) {
                         mode = m
                         offset = 0
@@ -433,16 +433,16 @@ private fun TripHistory(child: WatchedChild?, now: Long, picker: @Composable () 
             }
             if (mode != HistoryMode.ALL) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { offset-- }) { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowLeft, "Periode sebelumnya", tint = Tokens.Text) }
+                    IconButton(onClick = { offset-- }) { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowLeft, "Previous period", tint = Tokens.Text) }
                     Text(period.title, color = Tokens.Text, modifier = Modifier.weight(1f), textAlign = TextAlign.Center, style = MaterialTheme.typography.titleSmall)
                     IconButton(onClick = { offset++ }, enabled = offset < 0) {
-                        Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, "Periode berikutnya", tint = if (offset < 0) Tokens.Text else Tokens.Border)
+                        Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, "Next period", tint = if (offset < 0) Tokens.Text else Tokens.Border)
                     }
                 }
             }
             if (shown.isEmpty()) {
                 Text(
-                    if (trips.isEmpty()) "Belum ada perjalanan." else "Tidak ada perjalanan di periode ini.",
+                    if (trips.isEmpty()) "No trips yet." else "No trips in this period.",
                     color = AppTheme.extra.muted, modifier = Modifier.padding(8.dp),
                 )
             }
@@ -459,24 +459,24 @@ private fun TripHistory(child: WatchedChild?, now: Long, picker: @Composable () 
 private fun TripCard(t: CareTrip, ongoing: Boolean, now: Long, expanded: Boolean, onToggle: () -> Unit) {
     val today = localDay(now)
     val day = localDay(t.startedAt)
-    val hm = SimpleDateFormat("HH:mm", ID)
+    val hm = SimpleDateFormat("HH:mm", EN)
     val dayText = if (day == today) "" else dayName(day, today) + ", "
     val timeText = dayText + hm.format(Date(t.startedAt)) + (t.endedAt?.let { " – " + hm.format(Date(it)) } ?: "")
     val minutes = t.endedAt?.let { ((it - t.startedAt) / 60_000.0).roundToInt().coerceAtLeast(1) }
     val (pillText, fg, bg) = when {
-        ongoing -> Triple("Berjalan", Tokens.Accent, Tokens.AccentSoft)
-        t.outcome == CareEventType.ARRIVED -> Triple("Sampai", Tokens.Correct, Tokens.CorrectBg)
-        t.outcome == CareEventType.NAV_STOP -> Triple("Dihentikan", Tokens.Warn, Tokens.WarnBg)
-        else -> Triple("Tanpa akhir", Tokens.Muted, Tokens.AccentSoft)
+        ongoing -> Triple("Walking", Tokens.Accent, Tokens.AccentSoft)
+        t.outcome == CareEventType.ARRIVED -> Triple("Arrived", Tokens.Correct, Tokens.CorrectBg)
+        t.outcome == CareEventType.NAV_STOP -> Triple("Stopped", Tokens.Warn, Tokens.WarnBg)
+        else -> Triple("No end", Tokens.Muted, Tokens.AccentSoft)
     }
-    Card(onClick = onToggle, onClickLabel = if (expanded) "Tutup rincian" else "Lihat rincian", padding = 14.dp) {
+    Card(onClick = onToggle, onClickLabel = if (expanded) "Hide details" else "Show details", padding = 14.dp) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Rounded.LocationOn, null, tint = Tokens.Pink, modifier = Modifier.size(28.dp))
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(t.routeName ?: "Perjalanan", style = MaterialTheme.typography.titleSmall, color = Tokens.Text)
-                Text(timeText + (minutes?.let { "  ($it mnt)" } ?: ""), style = MaterialTheme.typography.bodySmall, color = AppTheme.extra.muted)
-                if (t.alarms > 0) Text("${t.alarms} alarm", style = MaterialTheme.typography.bodySmall, color = Tokens.Wrong, fontWeight = FontWeight.SemiBold)
+                Text(t.routeName ?: "Trip", style = MaterialTheme.typography.titleSmall, color = Tokens.Text)
+                Text(timeText + (minutes?.let { "  ($it min)" } ?: ""), style = MaterialTheme.typography.bodySmall, color = AppTheme.extra.muted)
+                if (t.alarms > 0) Text("${t.alarms} ${if (t.alarms == 1) "alarm" else "alarms"}", style = MaterialTheme.typography.bodySmall, color = Tokens.Wrong, fontWeight = FontWeight.SemiBold)
             }
             Pill(pillText, fg, bg)
         }
@@ -488,17 +488,17 @@ private fun TripCard(t: CareTrip, ongoing: Boolean, now: Long, expanded: Boolean
 
 // --- Alarm ---------------------------------------------------------------------------------------
 
-private val ROUTINE = setOf(CareEventType.NAV_START, CareEventType.BELOK_KIRI, CareEventType.BELOK_KANAN, CareEventType.PUTAR_BALIK)
+private val ROUTINE = setOf(CareEventType.NAV_START, CareEventType.TURN_LEFT, CareEventType.TURN_RIGHT, CareEventType.U_TURN)
 
 @Composable
 private fun Alerts(child: WatchedChild?, now: Long, picker: @Composable () -> Unit, onAck: (Long) -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        ScreenTitle("Alarm", child?.name)
+        ScreenTitle("Alerts", child?.name)
         picker()
         if (child == null) { NoChild(); return@Column }
         val shown = child.events.filter { it.type !in ROUTINE }
         Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (shown.isEmpty()) Text("Belum ada alarm atau kabar.", color = AppTheme.extra.muted, modifier = Modifier.padding(8.dp))
+            if (shown.isEmpty()) Text("No alerts or updates yet.", color = AppTheme.extra.muted, modifier = Modifier.padding(8.dp))
             shown.take(100).forEach { AlertCard(it, now, onAck) }
             Spacer(Modifier.height(16.dp))
         }
@@ -506,10 +506,10 @@ private fun Alerts(child: WatchedChild?, now: Long, picker: @Composable () -> Un
 }
 
 private fun alertLook(t: CareEventType): Triple<ImageVector, Color, Color> = when (t) {
-    CareEventType.KELUAR_RUTE -> Triple(Icons.Rounded.WarningAmber, Tokens.Warn, Tokens.WarnBg)
-    CareEventType.TERPUTUS, CareEventType.OFFLINE -> Triple(Icons.Rounded.LinkOff, Tokens.Accent, Tokens.AccentSoft)
+    CareEventType.OFF_ROUTE -> Triple(Icons.Rounded.WarningAmber, Tokens.Warn, Tokens.WarnBg)
+    CareEventType.SLEEVE_DISCONNECTED, CareEventType.OFFLINE -> Triple(Icons.Rounded.LinkOff, Tokens.Accent, Tokens.AccentSoft)
     CareEventType.ARRIVED -> Triple(Icons.Rounded.CheckCircle, Tokens.Correct, Tokens.CorrectBg)
-    CareEventType.TERSAMBUNG, CareEventType.KEMBALI_RUTE -> Triple(Icons.Rounded.CheckCircle, Tokens.Correct, Tokens.CorrectBg)
+    CareEventType.SLEEVE_CONNECTED, CareEventType.BACK_ON_ROUTE -> Triple(Icons.Rounded.CheckCircle, Tokens.Correct, Tokens.CorrectBg)
     CareEventType.NAV_STOP -> Triple(Icons.Rounded.Flag, Tokens.Warn, Tokens.WarnBg)
     else -> Triple(Icons.Rounded.Info, Tokens.Accent, Tokens.AccentSoft)
 }
@@ -527,10 +527,10 @@ private fun AlertCard(e: RemoteEvent, now: Long, onAck: (Long) -> Unit) {
                 Text(timeText(e.occurredAt, now), style = MaterialTheme.typography.bodySmall, color = AppTheme.extra.muted)
                 if (e.message.isNotEmpty()) Text(e.message, style = MaterialTheme.typography.bodyMedium, color = Tokens.Text, modifier = Modifier.padding(top = 4.dp))
                 if (e.ackedBy != null) {
-                    Text("Dilihat oleh ${e.ackedBy} ${e.ackedAt?.let { ago(it, now) } ?: ""}", color = Tokens.Correct, style = MaterialTheme.typography.bodySmall)
+                    Text("Seen by ${e.ackedBy} ${e.ackedAt?.let { ago(it, now) } ?: ""}", color = Tokens.Correct, style = MaterialTheme.typography.bodySmall)
                 } else if (open) {
                     Spacer(Modifier.height(8.dp))
-                    SoftButton("Tandai dilihat", { onAck(e.id) }, color = Tokens.Wrong, background = Tokens.Card)
+                    SoftButton("Mark as seen", { onAck(e.id) }, color = Tokens.Wrong, background = Tokens.Card)
                 }
             }
         }
@@ -540,7 +540,7 @@ private fun AlertCard(e: RemoteEvent, now: Long, onAck: (Long) -> Unit) {
 private fun timeText(at: Long, now: Long): String {
     val day = localDay(at)
     val today = localDay(now)
-    val hm = SimpleDateFormat("HH:mm", ID).format(Date(at))
+    val hm = SimpleDateFormat("HH:mm", EN).format(Date(at))
     return if (day == today) hm else "${dayName(day, today)}, $hm"
 }
 
@@ -556,21 +556,21 @@ private fun EventLine(e: RemoteEvent, showDate: Boolean, now: Long, onAck: ((Lon
             Pill(e.type.label, fg, bg)
             Spacer(Modifier.width(10.dp))
             Text(
-                SimpleDateFormat(if (showDate) "d MMM, HH:mm" else "HH:mm", ID).format(Date(e.occurredAt)),
+                SimpleDateFormat(if (showDate) "d MMM, HH:mm" else "HH:mm", EN).format(Date(e.occurredAt)),
                 color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall,
             )
         }
         if (e.message.isNotEmpty()) Text(e.message, color = Tokens.Text, style = MaterialTheme.typography.bodyMedium)
         if (e.ackedBy != null) {
-            Text("Dilihat oleh ${e.ackedBy} ${e.ackedAt?.let { ago(it, now) } ?: ""}", color = Tokens.Correct, style = MaterialTheme.typography.bodySmall)
+            Text("Seen by ${e.ackedBy} ${e.ackedAt?.let { ago(it, now) } ?: ""}", color = Tokens.Correct, style = MaterialTheme.typography.bodySmall)
         } else if (e.type.isAlarm && onAck != null) {
             Spacer(Modifier.height(4.dp))
-            SoftButton("Tandai dilihat", { onAck(e.id) }, color = Tokens.Wrong, background = Tokens.Card)
+            SoftButton("Mark as seen", { onAck(e.id) }, color = Tokens.Wrong, background = Tokens.Card)
         }
     }
 }
 
-/** A rounded filter chip: Semua / Hari ini / Minggu ini, or a child's name. */
+/** A rounded filter chip: All / Today / This week, or a child's name. */
 @Composable
 private fun Chip(text: String, modifier: Modifier = Modifier, selected: Boolean, onClick: () -> Unit) {
     Box(
@@ -594,7 +594,7 @@ private fun Chip(text: String, modifier: Modifier = Modifier, selected: Boolean,
     }
 }
 
-// --- Setelan -------------------------------------------------------------------------------------
+// --- Settings ------------------------------------------------------------------------------------
 
 @Composable
 private fun CareSettingsTab(vm: AppViewModel) {
@@ -605,11 +605,11 @@ private fun CareSettingsTab(vm: AppViewModel) {
     var confirmMode by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        ScreenTitle("Setelan", if (settings.parentName.isNotBlank()) "Masuk sebagai ${settings.parentName}" else null)
+        ScreenTitle("Settings", if (settings.parentName.isNotBlank()) "Signed in as ${settings.parentName}" else null)
         Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Card {
-                SectionLabel("Anak yang diikuti", icon = Icons.Rounded.ChildCare, tint = Tokens.Pink)
-                if (children.isEmpty()) Text("Belum ada.", color = AppTheme.extra.muted)
+                SectionLabel("Children you follow", icon = Icons.Rounded.ChildCare, tint = Tokens.Pink)
+                if (children.isEmpty()) Text("None yet.", color = AppTheme.extra.muted)
                 children.forEach { c ->
                     Row(Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                         Avatar(c.name, 36.dp)
@@ -624,10 +624,10 @@ private fun CareSettingsTab(vm: AppViewModel) {
             if (linking) {
                 LinkCard(vm, settings.relayUrl, settings.parentName, onCancel = { linking = false }) { linking = false }
             } else {
-                SoftButton("Hubungkan anak lain", { vm.clearLinkResult(); linking = true }, Modifier.fillMaxWidth(), icon = Icons.Rounded.GroupAdd, color = Tokens.Pink, background = Tokens.PinkSoft)
+                SoftButton("Link another child", { vm.clearLinkResult(); linking = true }, Modifier.fillMaxWidth(), icon = Icons.Rounded.GroupAdd, color = Tokens.Pink, background = Tokens.PinkSoft)
             }
-            SoftButton("Pakai HP ini sebagai HP anak", { confirmMode = true }, Modifier.fillMaxWidth(), icon = Icons.Rounded.SwapHoriz)
-            SoftButton("Keluar dari HP ini", { confirmSignOut = true }, Modifier.fillMaxWidth(), icon = Icons.AutoMirrored.Rounded.Logout, color = Tokens.Wrong, background = Tokens.WrongBg)
+            SoftButton("Use this phone as the child's phone", { confirmMode = true }, Modifier.fillMaxWidth(), icon = Icons.Rounded.SwapHoriz)
+            SoftButton("Sign out of this phone", { confirmSignOut = true }, Modifier.fillMaxWidth(), icon = Icons.AutoMirrored.Rounded.Logout, color = Tokens.Wrong, background = Tokens.WrongBg)
             Spacer(Modifier.height(16.dp))
         }
     }
@@ -636,20 +636,20 @@ private fun CareSettingsTab(vm: AppViewModel) {
         AlertDialog(
             onDismissRequest = { confirmSignOut = false },
             containerColor = Tokens.Card,
-            title = { Text("Keluar?") },
-            text = { Text("Berhenti menerima alarm di HP ini?", color = AppTheme.extra.muted) },
-            confirmButton = { TextButton(onClick = { vm.signOutCare(); confirmSignOut = false }) { Text("Keluar", color = Tokens.Wrong) } },
-            dismissButton = { TextButton(onClick = { confirmSignOut = false }) { Text("Batal") } },
+            title = { Text("Sign out?") },
+            text = { Text("Stop receiving alarms on this phone?", color = AppTheme.extra.muted) },
+            confirmButton = { TextButton(onClick = { vm.signOutCare(); confirmSignOut = false }) { Text("Sign out", color = Tokens.Wrong) } },
+            dismissButton = { TextButton(onClick = { confirmSignOut = false }) { Text("Cancel") } },
         )
     }
     if (confirmMode) {
         AlertDialog(
             onDismissRequest = { confirmMode = false },
             containerColor = Tokens.Card,
-            title = { Text("Ganti ke mode Anak?") },
-            text = { Text("HP ini berhenti menerima alarm anak.", color = AppTheme.extra.muted) },
-            confirmButton = { TextButton(onClick = { vm.setMode(AppMode.CHILD); confirmMode = false }) { Text("Ganti") } },
-            dismissButton = { TextButton(onClick = { confirmMode = false }) { Text("Batal") } },
+            title = { Text("Switch to Child mode?") },
+            text = { Text("This phone will stop receiving the child's alarms.", color = AppTheme.extra.muted) },
+            confirmButton = { TextButton(onClick = { vm.setMode(AppMode.CHILD); confirmMode = false }) { Text("Switch") } },
+            dismissButton = { TextButton(onClick = { confirmMode = false }) { Text("Cancel") } },
         )
     }
 }
@@ -662,37 +662,37 @@ private fun LinkCard(vm: AppViewModel, relayUrl: String, savedName: String, onCa
     var code by remember { mutableStateOf("") }
     var name by remember { mutableStateOf(savedName) }
     LaunchedEffect(result) { if (result?.startsWith(AppViewModel.LINKED) == true) onDone() }
-    LaunchedEffect(relayUrl) { url = relayUrl } // "Cari relay" updates the stored address
+    LaunchedEffect(relayUrl) { url = relayUrl } // "Find relay" updates the stored address
     Card {
-        SectionLabel("Hubungkan ke HP anak", icon = Icons.Rounded.GroupAdd, tint = Tokens.Pink)
-        Text("Di HP anak: Setelan → Undang orang tua. Ketik kode 6 angkanya di sini.", color = AppTheme.extra.muted)
+        SectionLabel("Link to the child's phone", icon = Icons.Rounded.GroupAdd, tint = Tokens.Pink)
+        Text("On the child's phone: Settings → Invite parent. Type the 6-digit code here.", color = AppTheme.extra.muted)
         Spacer(Modifier.height(8.dp))
         OutlinedTextField(
             value = code, onValueChange = { code = it.filter(Char::isDigit).take(6) },
-            label = { Text("Kode undangan") },
+            label = { Text("Invite code") },
             textStyle = CodeStyle, singleLine = true, modifier = Modifier.fillMaxWidth(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         )
         OutlinedTextField(
             value = name, onValueChange = { name = it.take(40) },
-            label = { Text("Nama Anda (tampil sebagai \"Dilihat oleh …\")") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+            label = { Text("Your name (shown as \"Seen by …\")") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
         )
         OutlinedTextField(
             value = url, onValueChange = { url = it },
-            label = { Text("Alamat relay") }, placeholder = { Text("https://…") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+            label = { Text("Relay address") }, placeholder = { Text("https://…") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
         )
         Spacer(Modifier.height(10.dp))
-        SoftButton(if (finding) "Mencari…" else "Cari relay di WiFi ini", { vm.findRelayForCare() }, enabled = !finding, icon = Icons.Rounded.Router)
+        SoftButton(if (finding) "Searching…" else "Find relay on this WiFi", { vm.findRelayForCare() }, enabled = !finding, icon = Icons.Rounded.Router)
         Spacer(Modifier.height(10.dp))
         PrimaryButton(
-            "Hubungkan", { vm.link(url, code, name) },
+            "Link", { vm.link(url, code, name) },
             enabled = code.length == 6 && name.isNotBlank() && url.isNotBlank(),
             color = Tokens.Pink,
         )
         if (onCancel != null) {
             Spacer(Modifier.height(8.dp))
-            SoftButton("Batal", onCancel, Modifier.fillMaxWidth())
+            SoftButton("Cancel", onCancel, Modifier.fillMaxWidth())
         }
         result?.let {
             Text(

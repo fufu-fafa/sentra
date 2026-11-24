@@ -3,8 +3,8 @@
 // sending what the real app sends: fixes every second, a heartbeat every 20 s and the trip events.
 //
 //   node fake-child.mjs [relay URL]            default http://127.0.0.1:8787
-//   node fake-child.mjs --offroute             leaves the route half-way (KELUAR_RUTE alarm), then returns
-//   node fake-child.mjs --drop                 sleeve drops for 15 s mid-trip (TERPUTUS alarm)
+//   node fake-child.mjs --offroute             leaves the route half-way (OFF_ROUTE alarm), then returns
+//   node fake-child.mjs --drop                 sleeve drops for 15 s mid-trip (SLEEVE_DISCONNECTED alarm)
 //   node fake-child.mjs --silent               stops sending mid-trip (the relay raises OFFLINE after 60 s)
 //
 // The token is kept in .fake-child.json so a rerun is the same child and keeps its linked parents.
@@ -35,7 +35,7 @@ const metres = (a, b) => Math.hypot((b[1] - a[1]) * 111320 * Math.cos(((a[0] + b
 
 let state = existsSync(STATE) ? JSON.parse(readFileSync(STATE, 'utf8')) : {};
 if (state.base !== base || !state.token) {
-  const w = await api('POST', '/v1/children', null, { name: 'Anak (simulasi)' });
+  const w = await api('POST', '/v1/children', null, { name: 'Child (simulated)' });
   state = { base, token: w.token, seq: 0 };
 }
 const save = () => writeFileSync(STATE, JSON.stringify(state));
@@ -43,8 +43,8 @@ save();
 const token = state.token;
 
 const invite = await api('POST', '/v1/invites', token);
-console.log(`\nKode undangan: ${invite.code}   (berlaku 15 menit)`);
-console.log(`Buka ${base}/ di browser, atau mode Orang tua di aplikasi, lalu ketik kodenya.\n`);
+console.log(`\nInvite code: ${invite.code}   (valid for 15 minutes)`);
+console.log(`Open ${base}/ in a browser, or Parent mode in the app, then type the code.\n`);
 
 let pos = ROUTE[0], target = 1, navState = 'NAVIGATING', sleeve = true;
 const status = (navigating = true) => ({
@@ -55,16 +55,16 @@ const status = (navigating = true) => ({
 const event = (type, message) => {
   console.log(`  ${type}: ${message}`);
   return api('POST', '/v1/events', token, {
-    deviceAddress: 'SIMULASI', seq: ++state.seq, type, batteryPct: 76, occurredAt: Date.now(), lat: pos[0], lon: pos[1], message,
+    deviceAddress: 'SIMULATED', seq: ++state.seq, type, batteryPct: 76, occurredAt: Date.now(), lat: pos[0], lon: pos[1], message,
   }).then(save);
 };
 const heartbeat = (navigating) => api('POST', '/v1/heartbeat', token, { status: status(navigating) });
 
-console.log('Menunggu 15 detik supaya sempat menghubungkan…');
+console.log('Waiting 15 seconds so there is time to link…');
 await heartbeat(false);
 await wait(15_000);
 
-await event('NAV_START', 'Mulai jalan di rute Keliling Gedung Sate.');
+await event('NAV_START', 'Started walking on route Around Gedung Sate.');
 await heartbeat(true);
 let lastBeat = Date.now(), detour = flag('--offroute') ? 'pending' : null, drop = flag('--drop') ? 'pending' : null;
 
@@ -73,8 +73,8 @@ while (target < ROUTE.length) {
   const d = metres(pos, goal);
   if (d < 6) {
     if (target === ROUTE.length - 1) break;
-    const turn = ['BELOK_KANAN', 'BELOK_KIRI'][target % 2]; // the sample route zigzags
-    await event(turn, `Belok ${turn === 'BELOK_KANAN' ? 'kanan' : 'kiri'} di titik ${target + 1}.`);
+    const turn = ['TURN_RIGHT', 'TURN_LEFT'][target % 2]; // the sample route zigzags
+    await event(turn, `Turn ${turn === 'TURN_RIGHT' ? 'right' : 'left'} at point ${target + 1}.`);
     target++;
     continue;
   }
@@ -87,26 +87,26 @@ while (target < ROUTE.length) {
       detour = 'out';
       navState = 'OFF_ROUTE';
       for (let i = 0; i < 8; i++) { pos = [pos[0], pos[1] - 0.00005]; await api('POST', '/v1/locations', token, { points: [fix()] }); await wait(1000); }
-      await event('KELUAR_RUTE', 'Keluar rute, sekitar 40 m dari jalur. Sleeve memberi tanda berhenti.');
+      await event('OFF_ROUTE', 'Off route, about 40 m from the path. The sleeve signals stop.');
       await heartbeat(true);
       await wait(20_000);
       for (let i = 0; i < 8; i++) { pos = [pos[0], pos[1] + 0.00005]; await api('POST', '/v1/locations', token, { points: [fix()] }); await wait(1000); }
       navState = 'NAVIGATING';
-      await event('KEMBALI_RUTE', 'Sudah kembali ke rute.');
+      await event('BACK_ON_ROUTE', 'Back on route.');
     }
     if (drop === 'pending') {
       drop = 'done';
       sleeve = false;
-      await event('TERPUTUS', 'Sleeve terputus dari HP saat navigasi berjalan.');
+      await event('SLEEVE_DISCONNECTED', 'Sleeve disconnected from the phone during navigation.');
       await heartbeat(true);
       await wait(15_000);
       sleeve = true;
-      await event('TERSAMBUNG', 'Sleeve tersambung lagi.');
+      await event('SLEEVE_CONNECTED', 'Sleeve connected again.');
     }
     if (flag('--silent')) {
-      console.log('  (diam: tidak mengirim apa pun; relay akan membunyikan OFFLINE setelah 60 detik)');
+      console.log('  (silent: sending nothing; the relay will ring OFFLINE after 60 seconds)');
       await wait(90_000);
-      console.log('  (kembali mengirim)');
+      console.log('  (sending again)');
     }
   }
 
@@ -116,9 +116,9 @@ while (target < ROUTE.length) {
 }
 
 navState = 'ARRIVED';
-await event('ARRIVED', 'Sudah sampai di tujuan rute Keliling Gedung Sate.');
+await event('ARRIVED', 'Arrived at the destination of route Around Gedung Sate.');
 await heartbeat(false);
-console.log('\nSelesai.');
+console.log('\nDone.');
 
 function fix() {
   return { at: Date.now(), lat: pos[0], lon: pos[1], acc: 5 + Math.random() * 3, speed: SPEED, bearing: 0 };

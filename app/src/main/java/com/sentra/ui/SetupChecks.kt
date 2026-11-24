@@ -46,22 +46,22 @@ data class RelayHealth(val url: String, val registered: Boolean, val error: Stri
 fun setupProblems(context: Context, childMode: Boolean, simulatedSleeve: Boolean = false, simulatedGps: Boolean = false): List<SetupProblem> = buildList {
     if (childMode) {
         if (!simulatedSleeve && !context.child.canConnect()) {
-            add(SetupProblem("Izin Perangkat sekitar mati, jadi aplikasi tidak bisa ke sleeve.", "Buka setelan aplikasi", ::openAppSettings))
+            add(SetupProblem("Nearby devices permission is off, so the app can't reach the sleeve.", "Open app settings", ::openAppSettings))
         }
         if (!simulatedGps) {
             if (!context.child.hasLocationPermission()) {
-                add(SetupProblem("Izin Lokasi mati, jadi navigasi tidak bisa membaca GPS.", "Buka setelan aplikasi", ::openAppSettings))
+                add(SetupProblem("Location permission is off, so navigation can't read GPS.", "Open app settings", ::openAppSettings))
             } else if (!LocationManagerCompat.isLocationEnabled(context.getSystemService(LocationManager::class.java))) {
-                add(SetupProblem("Lokasi (GPS) di HP ini mati.", "Nyalakan lokasi", ::openLocationSettings))
+                add(SetupProblem("Location (GPS) is off on this phone.", "Turn on location", ::openLocationSettings))
             }
         }
     }
     if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
         add(
             SetupProblem(
-                if (childMode) "Notifikasi mati, jadi status sleeve tidak tampil."
-                else "Notifikasi mati, jadi alarm tidak akan muncul di HP ini.",
-                "Nyalakan notifikasi", ::openNotificationSettings,
+                if (childMode) "Notifications are off, so the sleeve status isn't shown."
+                else "Notifications are off, so alarms won't appear on this phone.",
+                "Turn on notifications", ::openNotificationSettings,
             )
         )
     }
@@ -69,17 +69,17 @@ fun setupProblems(context: Context, childMode: Boolean, simulatedSleeve: Boolean
     if (!power.isIgnoringBatteryOptimizations(context.packageName)) {
         add(
             SetupProblem(
-                if (childMode) "Penghemat baterai bisa menghentikan navigasi saat layar mati."
-                else "Penghemat baterai bisa membuat alarm terlewat.",
-                "Izinkan di latar belakang", ::requestBatteryExemption,
+                if (childMode) "Battery saver may stop navigation while the screen is off."
+                else "Battery saver may cause missed alarms.",
+                "Allow in background", ::requestBatteryExemption,
             )
         )
     }
     if (!childMode) {
         if (Build.VERSION.SDK_INT >= 34 && !context.getSystemService(NotificationManager::class.java).canUseFullScreenIntent()) {
-            add(SetupProblem("Alarm layar penuh diblokir, jadi alarm hanya jadi notifikasi.", "Izinkan alarm layar penuh", ::openFullScreenSettings))
+            add(SetupProblem("Full-screen alarms are blocked, so alarms only show as notifications.", "Allow full-screen alarms", ::openFullScreenSettings))
         }
-        if (!hasInternet(context)) add(SetupProblem("Tidak ada internet, jadi alarm anak tidak sampai."))
+        if (!hasInternet(context)) add(SetupProblem("No internet, so the child's alarms won't get through."))
     }
 }
 
@@ -137,15 +137,15 @@ fun SetupWarnings(childMode: Boolean, simulatedSleeve: Boolean = false, simulate
     if (problems.isEmpty()) return
 
     Card(background = Tokens.WrongBg, border = Tokens.Wrong) {
-        SectionLabel("Perlu diperbaiki")
+        SectionLabel("Needs fixing")
         problems.forEachIndexed { i, p ->
             if (i > 0) Spacer(Modifier.height(10.dp))
             Text(p.text, style = MaterialTheme.typography.bodyMedium)
             if (p.fix != null) {
-                OutlinedButton(onClick = { p.fix.invoke(context) }) { Text(p.fixLabel ?: "Perbaiki") }
+                OutlinedButton(onClick = { p.fix.invoke(context) }) { Text(p.fixLabel ?: "Fix") }
             }
         }
         Spacer(Modifier.height(4.dp))
-        Text("Hilang sendiri setelah diperbaiki.", color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall)
+        Text("Disappears once fixed.", color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall)
     }
 }

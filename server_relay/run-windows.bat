@@ -30,7 +30,7 @@ echo Addresses for phones on the same WiFi:
 for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /c:"IPv4"') do (
   for /f "tokens=1" %%b in ("%%a") do echo    http://%%b:%PORT%
 )
-echo In the app: Setelan - Cari relay di WiFi ini, or type one of the addresses above.
+echo In the app: Settings - Find relay on this WiFi, or type one of the addresses above.
 echo Press Ctrl+C to stop.
 echo.
 

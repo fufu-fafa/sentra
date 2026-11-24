@@ -16,4 +16,4 @@ Source sets of the [`app`](../README.md) module.
 ## Key concepts
 
 Release builds have no default relay and require HTTPS; debug builds start at a local relay. A real
-phone cannot reach `10.0.2.2`, so it uses **Setelan → Cari relay di WiFi ini** instead.
+phone cannot reach `10.0.2.2`, so it uses **Settings → Find relay on this WiFi** instead.

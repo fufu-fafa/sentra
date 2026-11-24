@@ -27,14 +27,14 @@ class ChildRelay(
 
     private fun client(): RelayClient {
         val s = current()
-        return RelayClient(s.relayUrl, s.childToken ?: throw RelayException(401, "belum terdaftar di relay"))
+        return RelayClient(s.relayUrl, s.childToken ?: throw RelayException(401, "not registered with the relay yet"))
     }
 
     /** Registers this phone as a child's phone the first time a relay address is set. */
     suspend fun ensureRegistered() {
         val s = current()
         if (s.relayUrl.isBlank() || s.childToken != null) return
-        val r = RelayClient(s.relayUrl, null).post("/v1/children", JSONObject().put("name", s.childName.ifBlank { "Anak" }))
+        val r = RelayClient(s.relayUrl, null).post("/v1/children", JSONObject().put("name", s.childName.ifBlank { "Child" }))
         settings.setChildToken(r.getString("token"))
     }
 

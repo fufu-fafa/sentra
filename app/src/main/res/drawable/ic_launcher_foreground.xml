@@ -4,7 +4,7 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Three vibration arcs (kiri, tengah, kanan) under a direction arrow. -->
+    <!-- Three vibration arcs (left, center, right) under a direction arrow. -->
     <path
         android:strokeColor="#3B2C8C"
         android:strokeWidth="6"

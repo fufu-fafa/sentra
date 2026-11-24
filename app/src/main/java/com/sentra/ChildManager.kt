@@ -75,7 +75,7 @@ sealed interface ScanState {
 data class AckInfo(val command: String, val roundTripMs: Long?)
 
 /**
- * Mode Anak: owns the sleeve link, GPS, the navigation engine, voice, and the upload to the relay.
+ * Child mode: owns the sleeve link, GPS, the navigation engine, voice, and the upload to the relay.
  * Lives as long as the process; the foreground [SentraService] keeps the process alive while a
  * sleeve is connected or a trip is running, so navigation survives a dark screen (§9.8).
  *
@@ -149,7 +149,7 @@ class ChildManager(
     private var locationKind: String? = null
     private var tickJob: Job? = null
     private var demoJob: Job? = null
-    /** A screen (Rekam Rute) wants live GPS even without a trip. */
+    /** A screen (Record Route) wants live GPS even without a trip. */
     private val fixWanted = MutableStateFlow(false)
     @Volatile private var simDetour = false
     @Volatile private var lostReported = false
@@ -224,7 +224,7 @@ class ChildManager(
         }
         val device = found.getOrNull()
         _scan.value = when {
-            found.isFailure -> ScanState.Failed(found.exceptionOrNull()?.message ?: "Pencarian gagal")
+            found.isFailure -> ScanState.Failed(found.exceptionOrNull()?.message ?: "Scan failed")
             device == null -> ScanState.NotFound
             else -> ScanState.Idle
         }
@@ -277,10 +277,10 @@ class ChildManager(
             is SleeveMessage.Error -> _sleeveError.value = m.text
             is SleeveMessage.Button -> if (m.long) {
                 m.intensity?.let { _intensity.value = it }
-                speaker.speak(if (m.intensity == Intensity.LOW) "Getar lemah" else "Getar kuat")
+                speaker.speak(if (m.intensity == Intensity.LOW) "Weak vibration" else "Strong vibration")
             } else {
                 // BTN:SHORT: read out where we are (bacakanInfo).
-                speaker.speak(engine?.info() ?: "Navigasi belum dimulai")
+                speaker.speak(engine?.info() ?: "Navigation has not started")
             }
             SleeveMessage.Ready, is SleeveMessage.Unknown -> Unit
         }
@@ -302,23 +302,23 @@ class ChildManager(
         sleeve.link.map { it == LinkState.CONNECTED }.distinctUntilChanged().drop(1).collectLatest { connected ->
             logger.log("LINK", sleeve.link.value.name)
             if (connected) {
-                speaker.speak("Sleeve tersambung")
+                speaker.speak("Sleeve connected")
                 // The firmware drops its navigation pattern on disconnect; put it back.
                 engine?.currentCommand?.let { send(it) }
                 if (lostReported) {
                     lostReported = false
-                    record("TERSAMBUNG", "Sleeve tersambung lagi.")
+                    record("SLEEVE_CONNECTED", "Sleeve connected again.")
                 }
                 heartbeatNow()
             } else {
                 _obstacleCm.value = null
-                speaker.speak("Sleeve terputus")
+                speaker.speak("Sleeve disconnected")
                 heartbeatNow()
                 // A brief Bluetooth dropout isn't worth an alarm; a reconnect cancels this wait.
                 delay(LINK_SETTLE_MS)
                 if (_nav.value.active) {
                     lostReported = true
-                    record("TERPUTUS", "Sleeve terputus dari HP saat navigasi berjalan. Anak tidak mendapat getaran arah.")
+                    record("SLEEVE_DISCONNECTED", "Sleeve disconnected from the phone during navigation. The child is not getting direction vibrations.")
                 }
             }
         }
@@ -335,16 +335,16 @@ class ChildManager(
 
     // --- Navigation --------------------------------------------------------------------------
 
-    /** MULAI NAVIGASI on the chosen route. */
+    /** Start Navigation on the chosen route. */
     fun startNavigation(routeId: Long) = scope.launch {
         val route = db.routes().byId(routeId) ?: return@launch
         val points = route.geoPoints()
         if (points.size < 2) {
-            _navMessage.value = "Rute ini belum punya titik mulai dan tujuan."
+            _navMessage.value = "This route has no start point and destination yet."
             return@launch
         }
         if (!appSettings.value.simulatedGps && !hasLocationPermission()) {
-            _navMessage.value = "Izin lokasi belum diberikan, jadi navigasi tidak bisa membaca GPS."
+            _navMessage.value = "Location permission has not been granted, so navigation cannot read GPS."
             return@launch
         }
         stopDemo()
@@ -371,7 +371,7 @@ class ChildManager(
         heartbeatNow()
     }
 
-    /** SELESAI: the companion ends the trip early. */
+    /** Done: the companion ends the trip early. */
     fun stopNavigation() = scope.launch {
         navLock.withLock {
             val e = engine ?: return@withLock
@@ -402,14 +402,14 @@ class ChildManager(
         heartbeatNow()
     }
 
-    /** With simulated GPS: makes the pretend walker leave the route, to try the "keluar rute" path. */
+    /** With simulated GPS: makes the pretend walker leave the route, to try the "off route" path. */
     fun setSimulatedDetour(on: Boolean) {
         simDetour = on
     }
 
     val simulatedDetour: Boolean get() = simDetour
 
-    /** Live GPS for a screen that needs it without a trip (Rekam Rute). */
+    /** Live GPS for a screen that needs it without a trip (Record Route). */
     fun setFixWanted(on: Boolean) {
         fixWanted.value = on
     }
@@ -436,7 +436,7 @@ class ChildManager(
         locationJob = scope.launch {
             source.catch { e ->
                 Log.w(TAG, "location stopped", e)
-                _navMessage.value = "GPS tidak bisa dibaca: ${e.message}"
+                _navMessage.value = "Cannot read GPS: ${e.message}"
             }.collect(::onFix)
         }
     }
@@ -482,7 +482,7 @@ class ChildManager(
         val at = _fix.value
         db.outbox().insert(
             EventEntity(
-                deviceAddress = if (s.simulatedSleeve) FakeSleeve.ADDRESS else s.deviceAddress ?: "HP",
+                deviceAddress = if (s.simulatedSleeve) FakeSleeve.ADDRESS else s.deviceAddress ?: "Phone",
                 type = type, batteryPct = batteryPct(), occurredAt = System.currentTimeMillis(),
                 lat = at?.lat, lon = at?.lon, message = message,
             )
@@ -490,19 +490,19 @@ class ChildManager(
         kick.trySend(Unit)
     }
 
-    /** "Tes alarm" in Setelan: lets the parents check that their phone rings. */
-    fun sendTestAlert() = scope.launch { record("TEST", "Ini hanya tes dari HP ${appSettings.value.childName}.") }
+    /** "Send test alarm" in Settings: lets the parents check that their phone rings. */
+    fun sendTestAlert() = scope.launch { record("TEST", "This is only a test from ${appSettings.value.childName}'s phone.") }
 
-    // --- Mode Demo (§9.6) --------------------------------------------------------------------
+    // --- Demo Mode (§9.6) --------------------------------------------------------------------
 
-    /** A manual button: KIRI, KANAN, LURUS, STOP, TIBA, TES, LEMAH, KUAT. */
+    /** A manual button: LEFT, RIGHT, FORWARD, STOP, ARRIVED, TEST, LOW, HIGH. */
     fun demoCommand(command: SleeveCommand) = scope.launch {
         if (_nav.value.active) return@launch
         send(command)
         DEMO_VOICE[command]?.let(speaker::speak)
     }
 
-    /** SIMULASI RUTE OTOMATIS: FORWARD, LEFT, FORWARD, RIGHT, FORWARD, ARRIVED, one every 4 s, with voice. */
+    /** Automatic route simulation: FORWARD, LEFT, FORWARD, RIGHT, FORWARD, ARRIVED, one every 4 s, with voice. */
     fun startDemo() {
         if (_nav.value.active || demoJob?.isActive == true) return
         demoJob = scope.launch {
@@ -540,14 +540,14 @@ class ChildManager(
 
     fun speak(text: String) = speaker.speak(text)
 
-    fun speakInfo() = speaker.speak(engine?.info() ?: "Navigasi belum dimulai")
+    fun speakInfo() = speaker.speak(engine?.info() ?: "Navigation has not started")
 
     // --- Relay -------------------------------------------------------------------------------
 
     /**
      * Registers once, then keeps emptying the outbox: every few seconds during a trip, twice a
      * minute otherwise. Heartbeats go every 20 s during a trip and every 5 min when idle; the
-     * relay raises "HP anak offline" after 60 s of silence during a trip.
+     * relay raises "Child's phone offline" after 60 s of silence during a trip.
      */
     private suspend fun relayLoop() {
         var lastHeartbeat = 0L
@@ -556,6 +556,7 @@ class ChildManager(
             val s = settings.settings.first()
             val navigating = _nav.value.active
             if (s.mode == AppMode.CHILD && s.relayUrl.isNotBlank()) {
+                val started = System.currentTimeMillis()
                 val result = runCatching {
                     relay.ensureRegistered()
                     val sent = uploader.flush()
@@ -565,14 +566,20 @@ class ChildManager(
                         lastHeartbeat = System.currentTimeMillis()
                         heartbeat()
                     }
-                    if (!sent.complete && relay.configured) throw RelayException(0, "relay tidak terjangkau")
+                    if (!sent.complete && relay.configured) throw RelayException(0, "relay unreachable")
                 }
                 val error = result.exceptionOrNull()
                 _relayError.value = error?.message
+                val took = System.currentTimeMillis() - started
+                if (error != null || took > 2_000) Log.i(TAG, "relay round took $took ms: ${error?.message ?: "ok"}")
                 if (error != null) {
                     heartbeatDue = true
                     // Unreachable: on a local network the relay may have moved to another address.
-                    if ((error as? RelayException)?.status == 0) finder.afterFailure()
+                    if ((error as? RelayException)?.status == 0) {
+                        val scanStart = System.currentTimeMillis()
+                        val found = finder.afterFailure()
+                        Log.i(TAG, "relay scan after failure took ${System.currentTimeMillis() - scanStart} ms, found ${found?.url}")
+                    }
                 }
                 val out = db.outbox()
                 if (out.locationCount() > MAX_QUEUED_FIXES) out.trimLocations(MAX_QUEUED_FIXES)
@@ -669,14 +676,14 @@ class ChildManager(
             SleeveCommand.RIGHT, SleeveCommand.FORWARD, SleeveCommand.ARRIVED,
         )
         val DEMO_VOICE = mapOf(
-            SleeveCommand.FORWARD to "Jalan lurus",
-            SleeveCommand.LEFT to "Belok kiri",
-            SleeveCommand.RIGHT to "Belok kanan",
-            SleeveCommand.STOP to "Berhenti",
-            SleeveCommand.ARRIVED to "Kamu sudah sampai",
-            SleeveCommand.TEST to "Tes getar",
-            SleeveCommand.LOW to "Getar lemah",
-            SleeveCommand.HIGH to "Getar kuat",
+            SleeveCommand.FORWARD to "Go straight",
+            SleeveCommand.LEFT to "Turn left",
+            SleeveCommand.RIGHT to "Turn right",
+            SleeveCommand.STOP to "Stop",
+            SleeveCommand.ARRIVED to "You have arrived",
+            SleeveCommand.TEST to "Vibration test",
+            SleeveCommand.LOW to "Weak vibration",
+            SleeveCommand.HIGH to "Strong vibration",
         )
     }
 }

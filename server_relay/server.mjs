@@ -1,12 +1,12 @@
-// SENTRA relay: the child's phone (mode Anak) uploads events, GPS fixes and heartbeats; the
-// parents' phones (mode Orang tua, "SENTRA Care") get them at once over a live Server-Sent Events
+// SENTRA relay: the child's phone (Child mode) uploads events, GPS fixes and heartbeats; the
+// parents' phones (Parent mode, "SENTRA Care") get them at once over a live Server-Sent Events
 // stream and, for alarms, by Firebase Cloud Messaging push (push.mjs). Forked from the
 // fall-bracelet relay. Node 22+; the only dependency is firebase-admin, and without it (or its
 // key) the relay works stream-only.
 //
 //   node --disable-warning=ExperimentalWarning server.mjs      (PORT, DB_PATH env vars optional)
 //
-// Naming: a "child" is the child's phone (mode Anak), a "parent" a parent's phone (SENTRA Care).
+// Naming: a "child" is the child's phone (Child mode), a "parent" a parent's phone (SENTRA Care).
 // Auth: every phone gets a random bearer token when it registers or links; only its SHA-256 is
 // stored. The child's phone makes short-lived invite codes; a parent types one to link.
 
@@ -36,13 +36,13 @@ const LOCATION_TTL_MS = 30 * 24 * 3600_000; // privacy: fixes older than 30 days
 const KEEPALIVE_MS = 25_000;
 const MAX_POINTS_PER_POST = 500;
 /** Full-screen alarms on the parents' phones, re-pushed until someone acknowledges. */
-const ALARM_TYPES = ['KELUAR_RUTE', 'TERPUTUS', 'OFFLINE'];
+const ALARM_TYPES = ['OFF_ROUTE', 'SLEEVE_DISCONNECTED', 'OFFLINE'];
 const isAlarm = (type) => ALARM_TYPES.includes(type);
 /** A later event that shows an alarm is over, so it stops ringing by itself. */
 const RESOLVES = {
-  TERSAMBUNG: { types: ['TERPUTUS'], by: 'otomatis: sleeve tersambung lagi' },
-  KEMBALI_RUTE: { types: ['KELUAR_RUTE'], by: 'otomatis: kembali ke rute' },
-  ARRIVED: { types: ['KELUAR_RUTE'], by: 'otomatis: sudah sampai' },
+  SLEEVE_CONNECTED: { types: ['SLEEVE_DISCONNECTED'], by: 'automatic: sleeve connected again' },
+  BACK_ON_ROUTE: { types: ['OFF_ROUTE'], by: 'automatic: back on route' },
+  ARRIVED: { types: ['OFF_ROUTE'], by: 'automatic: arrived' },
 };
 
 // --- Storage ----------------------------------------------------------------------------------
@@ -207,7 +207,7 @@ function addEvent(w, { device, seq, type, batteryPct, occurredAt, lat, lon, mess
 /** The child's phone was heard from again after being marked offline. */
 function backOnline(w) {
   fanOut(w.id, 'online', { childId: w.id, name: w.name });
-  resolveAlarms(w.id, ['OFFLINE'], 'otomatis: HP anak online lagi');
+  resolveAlarms(w.id, ['OFFLINE'], "automatic: child's phone online again");
 }
 
 // --- HTTP -------------------------------------------------------------------------------------
@@ -276,7 +276,7 @@ const routes = {
   /** The child's phone registers once and keeps the token. */
   'POST /v1/children': async (req) => {
     const b = await body(req);
-    const name = str(b.name) || 'Anak';
+    const name = str(b.name) || 'Child';
     const token = newToken();
     const { lastInsertRowid } = q.addChild.run(name, sha(token), now());
     return { childId: Number(lastInsertRowid), token };
@@ -305,7 +305,7 @@ const routes = {
     let token = null;
     if (!parent) {
       token = newToken();
-      const { lastInsertRowid } = q.addParent.run(str(b.name) || 'Orang tua', sha(token), now());
+      const { lastInsertRowid } = q.addParent.run(str(b.name) || 'Parent', sha(token), now());
       parent = { id: Number(lastInsertRowid) };
     }
     q.link.run(row.child_id, parent.id, now());
@@ -517,8 +517,8 @@ setInterval(() => {
       addEvent(w, {
         device: 'RELAY', seq: t, type: 'OFFLINE', batteryPct: null, occurredAt: t,
         lat: last?.lat ?? null, lon: last?.lon ?? null,
-        message: `HP ${w.name} tidak mengirim kabar selama ${secs} detik saat navigasi berjalan.` +
-          (last ? ' Peta menunjukkan lokasi terakhir.' : ''),
+        message: `${w.name}'s phone sent no word for ${secs} seconds during navigation.` +
+          (last ? ' The map shows the last known location.' : ''),
       });
     }
     console.log(`child ${w.id} offline${w.navigating ? ' during a trip' : ''}`);

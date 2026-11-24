@@ -30,7 +30,7 @@ class TestLogger(context: Context) {
     @Synchronized
     fun start(label: String): File {
         stop()
-        val safe = label.trim().ifEmpty { "uji" }.replace(Regex("[^A-Za-z0-9_-]+"), "_").take(40)
+        val safe = label.trim().ifEmpty { "test" }.replace(Regex("[^A-Za-z0-9_-]+"), "_").take(40)
         val stamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
         val file = File(dir, "${stamp}_$safe.csv")
         out = file.bufferedWriter().apply { write("t_ms,kind,a,b,c,d\n") }

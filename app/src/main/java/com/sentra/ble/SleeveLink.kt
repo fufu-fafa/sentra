@@ -66,7 +66,7 @@ class FakeSleeve(
             while (isActive) {
                 delay(SentraProtocol.STATUS_INTERVAL_MS)
                 tick++
-                // "Aplikasi tidak merespons -> navigasi dihentikan"
+                // "App not responding -> navigation stopped"
                 if (_pattern.value != null && now() - lastRxMs > SentraProtocol.APP_TIMEOUT_MS) _pattern.value = null
                 _messages.emit(SleeveMessage.Distance(obstacleCm ?: loopDistance(tick)))
             }
@@ -129,7 +129,7 @@ class FakeSleeve(
     }
 
     companion object {
-        const val ADDRESS = "SIMULASI"
+        const val ADDRESS = "SIMULATED"
         const val CONNECT_DELAY_MS = 600L
         const val ACK_DELAY_MS = 40L
     }

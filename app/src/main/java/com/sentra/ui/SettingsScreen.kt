@@ -61,44 +61,44 @@ import java.util.Locale
 /** The invite code field on a parent's phone, as in fall-bracelet. */
 val CodeStyle = TextStyle(fontSize = 24.sp, fontFamily = Mono, letterSpacing = 7.sp, textAlign = TextAlign.Center)
 
-/** Setelan of mode Anak: the alias, the sleeve, the parents, and the tools for testing without hardware. */
+/** Settings of Child mode: the alias, the sleeve, the parents, and the tools for testing without hardware. */
 @Composable
 fun SettingsScreen(vm: AppViewModel) {
     val settings by vm.settings.collectAsState()
     var confirm by remember { mutableStateOf<String?>(null) }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        ScreenTitle("Setelan")
+        ScreenTitle("Settings")
         Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Card {
-                SectionLabel("Anak", icon = Icons.Rounded.Person)
-                SavedField("Nama panggilan (dilihat orang tua)", settings.childName, vm::setChildName)
+                SectionLabel("Child", icon = Icons.Rounded.Person)
+                SavedField("Nickname (seen by parents)", settings.childName, vm::setChildName)
             }
             ParentsCard(vm)
             Card {
-                SectionLabel("Uji tanpa alat", icon = Icons.Rounded.Science)
-                SwitchRow("Sleeve simulasi", "Sleeve pura-pura di dalam aplikasi.", settings.simulatedSleeve, vm::setSimulatedSleeve)
-                SwitchRow("GPS simulasi", "Saat navigasi, posisi berjalan sendiri di rute.", settings.simulatedGps, vm::setSimulatedGps)
-                OutlinedButton(onClick = { vm.addSampleRoute() }, modifier = Modifier.fillMaxWidth()) { Text("Tambah rute contoh") }
+                SectionLabel("Test without hardware", icon = Icons.Rounded.Science)
+                SwitchRow("Simulated sleeve", "A pretend sleeve inside the app.", settings.simulatedSleeve, vm::setSimulatedSleeve)
+                SwitchRow("Simulated GPS", "During navigation, the position walks the route by itself.", settings.simulatedGps, vm::setSimulatedGps)
+                OutlinedButton(onClick = { vm.addSampleRoute() }, modifier = Modifier.fillMaxWidth()) { Text("Add sample route") }
                 if (settings.simulatedSleeve || settings.simulatedGps) {
-                    Text("Matikan sebelum dipakai sungguhan.", color = Tokens.Warn, style = MaterialTheme.typography.bodySmall)
+                    Text("Turn off before real use.", color = Tokens.Warn, style = MaterialTheme.typography.bodySmall)
                 }
             }
             TestLogCard(vm)
             Card {
                 SectionLabel("Sleeve", icon = Icons.Rounded.Bluetooth)
-                Text(settings.deviceName ?: "Belum ada sleeve", style = MaterialTheme.typography.titleMedium)
+                Text(settings.deviceName ?: "No sleeve yet", style = MaterialTheme.typography.titleMedium)
                 settings.deviceAddress?.let { Text(it, color = AppTheme.extra.muted, fontFamily = Mono, style = MaterialTheme.typography.bodySmall) }
                 Spacer(Modifier.height(8.dp))
-                SavedField("Hanya sambung ke nama ini", settings.sleeveName, vm::setSleeveName, placeholder = "SENTRA-01")
-                Text("Kosongkan untuk sleeve SENTRA mana pun.", color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall)
+                SavedField("Only connect to this name", settings.sleeveName, vm::setSleeveName, placeholder = "SENTRA-01")
+                Text("Leave empty for any SENTRA sleeve.", color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.height(12.dp))
-                OutlinedButton(onClick = { confirm = "history" }, modifier = Modifier.fillMaxWidth()) { Text("Hapus riwayat") }
+                OutlinedButton(onClick = { confirm = "history" }, modifier = Modifier.fillMaxWidth()) { Text("Clear history") }
                 OutlinedButton(onClick = { confirm = "forget" }, enabled = settings.deviceAddress != null, modifier = Modifier.fillMaxWidth()) {
-                    Text("Lupakan sleeve ini", color = Tokens.Wrong)
+                    Text("Forget this sleeve", color = Tokens.Wrong)
                 }
                 OutlinedButton(onClick = { confirm = "parent" }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Pakai HP ini sebagai HP orang tua")
+                    Text("Use this phone as a parent's phone")
                 }
             }
             Spacer(Modifier.height(16.dp))
@@ -106,11 +106,11 @@ fun SettingsScreen(vm: AppViewModel) {
     }
 
     val (title, body, action) = when (confirm) {
-        "history" -> Triple("Hapus riwayat?", "Menghapus kejadian dan lokasi yang tersimpan di HP ini saja.", { vm.clearHistory(); Unit })
-        "forget" -> Triple("Lupakan sleeve?", "HP ini berhenti tersambung sampai Anda menekan Sambungkan lagi.", { vm.forgetSleeve(); Unit })
+        "history" -> Triple("Clear history?", "Deletes the events and locations stored on this phone only.", { vm.clearHistory(); Unit })
+        "forget" -> Triple("Forget sleeve?", "This phone stays disconnected until you tap Connect again.", { vm.forgetSleeve(); Unit })
         "parent" -> Triple(
-            "Ganti ke mode Orang tua?",
-            "Navigasi dihentikan dan HP ini berhenti tersambung ke sleeve. Rute tidak dihapus.",
+            "Switch to Parent mode?",
+            "Navigation stops and this phone disconnects from the sleeve. Routes are kept.",
             { vm.setMode(AppMode.PARENT); Unit },
         )
         else -> return
@@ -120,12 +120,12 @@ fun SettingsScreen(vm: AppViewModel) {
         containerColor = Tokens.Card,
         title = { Text(title) },
         text = { Text(body, color = AppTheme.extra.muted) },
-        confirmButton = { TextButton(onClick = { action(); confirm = null }) { Text("Ya", color = Tokens.Wrong) } },
-        dismissButton = { TextButton(onClick = { confirm = null }) { Text("Batal") } },
+        confirmButton = { TextButton(onClick = { action(); confirm = null }) { Text("Yes", color = Tokens.Wrong) } },
+        dismissButton = { TextButton(onClick = { confirm = null }) { Text("Cancel") } },
     )
 }
 
-/** A text field with a Simpan button that shows once it differs, so nothing is saved half-typed. */
+/** A text field with a Save button that shows once it differs, so nothing is saved half-typed. */
 @Composable
 fun SavedField(label: String, saved: String, onSave: (String) -> Unit, placeholder: String = "", keyboard: KeyboardType = KeyboardType.Text) {
     var text by rememberSaveable(saved) { mutableStateOf(saved) }
@@ -136,7 +136,7 @@ fun SavedField(label: String, saved: String, onSave: (String) -> Unit, placehold
         keyboardOptions = KeyboardOptions(keyboardType = keyboard),
     )
     if (text.trim() != saved) {
-        OutlinedButton(onClick = { onSave(text.trim()) }) { Text("Simpan") }
+        OutlinedButton(onClick = { onSave(text.trim()) }) { Text("Save") }
     }
 }
 
@@ -167,9 +167,9 @@ private fun ParentsCard(vm: AppViewModel) {
     LaunchedEffect(settings.childToken, health?.parents) { vm.refreshParents() }
 
     Card {
-        SectionLabel("Orang tua (SENTRA Care)", icon = Icons.Rounded.FamilyRestroom, tint = Tokens.Pink)
+        SectionLabel("Parents (SENTRA Care)", icon = Icons.Rounded.FamilyRestroom, tint = Tokens.Pink)
         Text(
-            "Orang tua yang terhubung melihat lokasi dan alarm di SENTRA Care, lewat relay.",
+            "Linked parents see the location and alarms in SENTRA Care, through the relay.",
             color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall,
         )
         Spacer(Modifier.height(12.dp))
@@ -177,41 +177,41 @@ private fun ParentsCard(vm: AppViewModel) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(p.name)
-                    Text("Terhubung ${ago(p.linkedAt, System.currentTimeMillis())}", color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall)
+                    Text("Linked ${ago(p.linkedAt, System.currentTimeMillis())}", color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall)
                 }
-                TextButton(onClick = { vm.removeParent(p.id) }) { Text("Hapus", color = Tokens.Wrong) }
+                TextButton(onClick = { vm.removeParent(p.id) }) { Text("Remove", color = Tokens.Wrong) }
             }
         }
-        if (parents.isEmpty() && settings.childToken != null) Text("Belum ada orang tua terhubung.")
+        if (parents.isEmpty() && settings.childToken != null) Text("No parents linked yet.")
         Spacer(Modifier.height(8.dp))
-        PrimaryButton("Undang orang tua", { vm.newInvite() }, enabled = settings.relayUrl.isNotBlank(), icon = Icons.Rounded.PersonAdd, color = Tokens.Pink, height = 50.dp)
+        PrimaryButton("Invite parent", { vm.newInvite() }, enabled = settings.relayUrl.isNotBlank(), icon = Icons.Rounded.PersonAdd, color = Tokens.Pink, height = 50.dp)
         invite?.let { inv ->
             if (inv.expiresAt > System.currentTimeMillis()) {
                 Spacer(Modifier.height(8.dp))
-                Text("Kode undangan", color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall)
+                Text("Invite code", color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall)
                 Text(inv.code.chunked(3).joinToString(" "), style = MaterialTheme.typography.headlineMedium, fontFamily = Mono)
                 Text(
-                    "Di HP orang tua, pilih \"Orang tua\" dan ketik kode ini. Sekali pakai, berlaku sampai " +
+                    "On the parent's phone, choose \"Parent\" and type this code. Single use, valid until " +
                         SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(inv.expiresAt)) + ".",
                     color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall,
                 )
             }
         }
         if (parents.isNotEmpty()) {
-            OutlinedButton(onClick = vm::sendTestAlert, modifier = Modifier.fillMaxWidth()) { Text("Kirim tes alarm") }
+            OutlinedButton(onClick = vm::sendTestAlert, modifier = Modifier.fillMaxWidth()) { Text("Send test alarm") }
         }
         message?.let { Text(it, color = AppTheme.extra.muted) }
-        health?.error?.let { Text("Relay tidak terjangkau: $it", color = Tokens.Wrong, style = MaterialTheme.typography.bodySmall) }
+        health?.error?.let { Text("Relay unreachable: $it", color = Tokens.Wrong, style = MaterialTheme.typography.bodySmall) }
         Spacer(Modifier.height(12.dp))
         OutlinedTextField(
             value = url, onValueChange = { url = it },
-            label = { Text("Alamat relay") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+            label = { Text("Relay address") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
         )
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { vm.findRelay() }, enabled = !finding) { Text(if (finding) "Mencari…" else "Cari relay di WiFi ini") }
+            OutlinedButton(onClick = { vm.findRelay() }, enabled = !finding) { Text(if (finding) "Searching…" else "Find relay on this WiFi") }
             if (url.trim() != settings.relayUrl) {
-                OutlinedButton(onClick = { vm.setRelayUrl(url) }) { Text("Simpan") }
+                OutlinedButton(onClick = { vm.setRelayUrl(url) }) { Text("Save") }
             }
         }
     }
@@ -225,19 +225,19 @@ private fun TestLogCard(vm: AppViewModel) {
     val context = LocalContext.current
     var label by rememberSaveable { mutableStateOf("") }
     Card {
-        SectionLabel("Catatan uji", icon = Icons.Rounded.Description)
-        Text("Jarak rintangan, waktu ACK dan GPS ke CSV, untuk Bab 10.", color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall)
+        SectionLabel("Test logs", icon = Icons.Rounded.Description)
+        Text("Obstacle distance, ACK timing and GPS to CSV, for Chapter 10.", color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(8.dp))
         if (recording == null) {
             OutlinedTextField(
                 value = label, onValueChange = { label = it.take(40) },
-                label = { Text("Nama uji") }, placeholder = { Text("jangkauan-ble-5m") },
+                label = { Text("Test name") }, placeholder = { Text("ble-range-5m") },
                 singleLine = true, modifier = Modifier.fillMaxWidth(),
             )
-            OutlinedButton(onClick = { vm.startRecording(label) }, modifier = Modifier.fillMaxWidth()) { Text("Mulai merekam") }
+            OutlinedButton(onClick = { vm.startRecording(label) }, modifier = Modifier.fillMaxWidth()) { Text("Start recording") }
         } else {
-            Text("Merekam ${recording!!.name}", color = Tokens.Correct)
-            OutlinedButton(onClick = vm::stopRecording, modifier = Modifier.fillMaxWidth()) { Text("Berhenti") }
+            Text("Recording ${recording!!.name}", color = Tokens.Correct)
+            OutlinedButton(onClick = vm::stopRecording, modifier = Modifier.fillMaxWidth()) { Text("Stop") }
         }
         files.take(10).forEach { f ->
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -245,8 +245,8 @@ private fun TestLogCard(vm: AppViewModel) {
                     Text(f.name, fontFamily = Mono, style = MaterialTheme.typography.bodySmall)
                     Text("${f.length() / 1024} kB", color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall)
                 }
-                TextButton(onClick = { share(context, f) }, enabled = f != recording) { Text("Bagikan") }
-                TextButton(onClick = { vm.deleteRecording(f) }, enabled = f != recording) { Text("Hapus", color = Tokens.Wrong) }
+                TextButton(onClick = { share(context, f) }, enabled = f != recording) { Text("Share") }
+                TextButton(onClick = { vm.deleteRecording(f) }, enabled = f != recording) { Text("Remove", color = Tokens.Wrong) }
             }
         }
     }
@@ -255,5 +255,5 @@ private fun TestLogCard(vm: AppViewModel) {
 private fun share(context: Context, file: File) {
     val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
     val send = Intent(Intent.ACTION_SEND).setType("text/csv").putExtra(Intent.EXTRA_STREAM, uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    runCatching { context.startActivity(Intent.createChooser(send, "Bagikan catatan uji")) }
+    runCatching { context.startActivity(Intent.createChooser(send, "Share test log")) }
 }
