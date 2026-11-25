@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SENTRA: directions you can feel</title>
+<meta name="description" content="SENTRA is a navigation sleeve for blind children. Three vibration motors give directions and warn of obstacles, and SENTRA Care keeps parents informed.">
+<meta name="theme-color" content="#ede7fb">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Lexend:wght@500;700&display=swap">
+<style>
+  :root {
+    --paper: #ede7fb; --white: #fff; --ink: #221a4a; --soft: #51497a;
+    --violet: #3b2c8c; --violet-deep: #2a1f6b; --pink: #b82a6b; --signal: #ffc94a;
+    --display: "Lexend", system-ui, sans-serif;
+    --body: "Atkinson Hyperlegible", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 1.125rem/1.55 var(--body); }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+  h1, h2, h3 { font-family: var(--display); line-height: 1.1; margin: 0; text-wrap: balance; }
+  p { margin: 0; max-width: 62ch; }
+  a { color: var(--violet); text-underline-offset: 3px; }
+  :focus-visible { outline: 3px solid var(--pink); outline-offset: 3px; }
+
+  /* header.wrap, not header: .wrap's padding shorthand would otherwise reset top and bottom to 0. */
+  header.wrap { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding-top: 32px; padding-bottom: 24px; }
+  .name { font: 700 1.5rem var(--display); color: var(--violet); }
+  header a { font-weight: 700; }
+
+  .hero { display: grid; grid-template-columns: 5fr 6fr; gap: 56px; align-items: center; padding-top: 40px; padding-bottom: 88px; }
+  h1 { font-size: clamp(2.6rem, 6vw, 4.5rem); letter-spacing: -.025em; margin-bottom: 24px; }
+  .lead { font-size: 1.3rem; color: var(--soft); margin-bottom: 32px; }
+  .button { display: inline-block; background: var(--pink); color: #fff; font: 700 1.05rem var(--body);
+            text-decoration: none; padding: 15px 26px; border-radius: 999px; }
+  .button:hover { background: #99205a; }
+  .note { font-size: 1rem; color: var(--soft); margin-top: 12px; }
+
+  /* The sleeve: the one thing on this page that moves. */
+  .sleeve { background: var(--violet-deep); color: #fff; border-radius: 40px; padding: 32px 28px 28px; }
+  .sleeve h2 { font-size: 1.35rem; margin-bottom: 4px; }
+  .sleeve > p { color: #cfc7f5; font-size: 1rem; }
+  .motors { display: grid; grid-template-columns: repeat(3, 1fr); margin: 28px 0 22px; padding: 26px 0 18px;
+            background: var(--violet); border-radius: 100px / 80px; text-align: center; }
+  .motor span { display: block; width: clamp(58px, 8vw, 84px); aspect-ratio: 1; margin: 0 auto 10px; border-radius: 50%;
+                background: #5645ad; border: 3px solid #8b7bdc; }
+  .motor.on span { background: var(--signal); border-color: #fff1c7; box-shadow: 0 0 0 10px rgba(255, 201, 74, .25); animation: buzz .08s linear infinite; }
+  @keyframes buzz { 25% { transform: translateX(-2px); } 75% { transform: translateX(2px); } }
+  .rhythm { display: grid; grid-template-columns: 4.5em 1fr; gap: 6px 10px; align-items: center; font-size: .9rem; color: #cfc7f5; }
+  .track { position: relative; height: 12px; background: #3d2f91; border-radius: 3px; overflow: hidden; }
+  .track i { position: absolute; top: 0; bottom: 0; background: var(--signal); }
+  .rhythm small { grid-column: 2; display: flex; justify-content: space-between; font-size: .8rem; }
+  .commands { display: flex; flex-wrap: wrap; gap: 8px; margin: 22px 0 16px; }
+  .commands button { font: 700 1rem var(--body); color: #fff; background: transparent; border: 2px solid #8b7bdc;
+                     border-radius: 999px; padding: 9px 16px; cursor: pointer; }
+  .commands button:hover { border-color: #fff; }
+  .commands button[aria-pressed="true"] { background: #fff; border-color: #fff; color: var(--violet-deep); }
+  .sleeve :focus-visible { outline-color: var(--signal); }
+  .meaning { min-height: 3.2em; }
+
+  .phones { background: var(--white); padding: 80px 0; }
+  h2.section { font-size: clamp(1.9rem, 4vw, 2.6rem); margin-bottom: 40px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; }
+  .two > div { border-top: 5px solid var(--violet); padding-top: 20px; }
+  .two > div + div { border-color: var(--pink); }
+  h3 { font-size: 1.4rem; margin-bottom: 10px; }
+  ul { padding-left: 1.1em; margin: 16px 0 0; }
+  li { margin-bottom: 8px; }
+
+  .offline { padding-top: 80px; padding-bottom: 80px; }
+  .offline h2 { margin-bottom: 18px; }
+
+  footer.wrap { border-top: 1px solid #cdc3ee; padding-top: 28px; padding-bottom: 40px; color: var(--soft); font-size: 1rem; }
+
+  @media (max-width: 860px) {
+    .hero { grid-template-columns: 1fr; gap: 44px; padding-top: 16px; padding-bottom: 56px; }
+    .two { grid-template-columns: 1fr; gap: 40px; }
+    .phones, .offline { padding-top: 56px; padding-bottom: 56px; }
+    .wrap { padding-left: 16px; padding-right: 16px; }
+    .sleeve { border-radius: 28px; padding: 24px 18px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .motor.on span { animation: none; } }
+</style>
+</head>
+<body>
+
+<header class="wrap">
+  <span class="name">SENTRA</span>
+  <a href="https://relay.sentra-relay.site">SENTRA Care</a>
+</header>
+
+<main>
+  <section class="wrap hero">
+    <div>
+      <h1>Directions you can feel</h1>
+      <p class="lead">SENTRA is a navigation sleeve for blind children. It guides them along a recorded route with gentle vibration, warns of obstacles ahead, and lets parents follow the trip.</p>
+      <a class="button" href="https://relay.sentra-relay.site">Open SENTRA Care</a>
+      <p class="note">For parents. You need the 6-digit invite code from your child's phone.</p>
+    </div>
+
+    <div class="sleeve">
+      <h2>Try the sleeve's signals</h2>
+      <p>Choose a signal to see which motors vibrate, and in what rhythm.</p>
+      <div class="motors" aria-hidden="true">
+        <div class="motor" id="m0"><span></span>Left</div>
+        <div class="motor" id="m1"><span></span>Center</div>
+        <div class="motor" id="m2"><span></span>Right</div>
+      </div>
+      <div class="rhythm" aria-hidden="true">
+        <span>Left</span><div class="track" id="t0"></div>
+        <span>Center</span><div class="track" id="t1"></div>
+        <span>Right</span><div class="track" id="t2"></div>
+        <small><span>0 s</span><span>3 s</span></small>
+      </div>
+      <div class="commands" id="commands" role="group" aria-label="Signals"></div>
+      <p class="meaning" id="meaning" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <section class="phones">
+    <div class="wrap">
+      <h2 class="section">One app, two phones</h2>
+      <div class="two">
+        <div>
+          <h3>The child's phone</h3>
+          <p>It connects to the sleeve over Bluetooth and does the navigating.</p>
+          <ul>
+            <li>Records a route once, then guides the child along it</li>
+            <li>Speaks each turn aloud while the sleeve vibrates</li>
+            <li>Notices when the child goes off route</li>
+          </ul>
+        </div>
+        <div>
+          <h3>The parent's phone: SENTRA Care</h3>
+          <p>It shows how the trip is going, in the app or in a web browser.</p>
+          <ul>
+            <li>Live location on a map and a history of trips</li>
+            <li>Alarms if the child goes off route or the sleeve disconnects</li>
+            <li>An alarm if the child's phone goes silent during a trip</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap offline">
+    <h2 class="section">Guidance continues without internet</h2>
+    <p>The sleeve and navigation don't depend on a connection. While the child's phone is offline, trip updates wait on it and are sent when it can reach SENTRA Care again. Parents don't see live updates during that time.</p>
+  </section>
+</main>
+
+<footer class="wrap">
+  <p>SENTRA is a prototype in development. It doesn't replace a white cane, mobility training or adult supervision.</p>
+</footer>
+
+<script>
+  // Timings match firmware/SENTRA_firmware (SENTRA_firmware.ino, "Vibration engine").
+  // [motors (0 left, 1 center, 2 right), on ms, off ms, pulses, cycle ms; cycle 0 = play once]
+  const SIGNALS = [
+    ["Walk on",  [0, 2], 150, 0, 1, 0,       "One short tap on both sides, then silence. Silence means keep walking."],
+    ["Turn left",  [0], 250, 150, 2, 1500,   "Two pulses on the left, repeating until the turn is done."],
+    ["Turn right", [2], 250, 150, 2, 1500,   "Two pulses on the right, repeating until the turn is done."],
+    ["Stop",     [0, 1, 2], 500, 500, 1, 1000, "All three motors, half a second on and half a second off."],
+    ["Arrived",  [0, 1, 2], 100, 100, 3, 0,  "Three quick taps on all motors. The route is finished."],
+    ["Obstacle ahead", [1], 80, 0, 1, 350,   "Fast taps in the center: something is 50 to 100 cm away. Farther away, up to 150 cm, the taps are slower. Closer than 50 cm, the vibration is continuous and directions pause."],
+  ];
+  const WINDOW = 3000;
+
+  const isOn = ([, , on, off, count, cycle], t) => {
+    if (cycle) t %= cycle;
+    const period = on + off;
+    return t < period * count && t % period < on;
+  };
+
+  const motors = [0, 1, 2].map(i => document.getElementById("m" + i));
+  const tracks = [0, 1, 2].map(i => document.getElementById("t" + i));
+  const meaning = document.getElementById("meaning");
+  let frame;
+
+  function play(signal, button) {
+    const [, used, on, off, count, cycle, text] = signal;
+    for (const b of button.parentNode.children) b.setAttribute("aria-pressed", b === button);
+    meaning.textContent = text;
+
+    tracks.forEach((track, m) => {
+      track.textContent = "";
+      if (!used.includes(m)) return;
+      for (let start = 0; start < WINDOW; start += cycle || WINDOW) {
+        for (let p = 0; p < count; p++) {
+          const at = start + p * (on + off);
+          if (at >= WINDOW) break;
+          const bar = document.createElement("i");
+          bar.style.left = at / WINDOW * 100 + "%";
+          bar.style.width = on / WINDOW * 100 + "%";
+          track.appendChild(bar);
+        }
+      }
+    });
+
+    cancelAnimationFrame(frame);
+    const t0 = performance.now();
+    (function tick(now) {
+      const t = Math.max(0, now - t0);
+      const running = t < (cycle ? 9000 : WINDOW);
+      motors.forEach((el, m) => el.classList.toggle("on", running && used.includes(m) && isOn(signal, t)));
+      if (running) frame = requestAnimationFrame(tick);
+    })(t0);
+  }
+
+  const list = document.getElementById("commands");
+  SIGNALS.forEach(signal => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = signal[0];
+    button.addEventListener("click", () => play(signal, button));
+    list.appendChild(button);
+  });
+  play(SIGNALS[1], list.children[1]);
+</script>
+</body>
+</html>
