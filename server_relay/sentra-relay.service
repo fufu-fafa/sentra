@@ -4,7 +4,9 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-# Replace YOUR_USER with the account the relay runs as. On the VPS, behind HTTPS, add: Environment=LAN_ONLY=0
+# Replace YOUR_USER with the account the relay runs as. On the VPS, behind Caddy and HTTPS, add:
+#   Environment=LAN_ONLY=0
+#   Environment=HOST=127.0.0.1
 User=YOUR_USER
 WorkingDirectory=/home/YOUR_USER/sentra-relay
 Environment=PORT=8787

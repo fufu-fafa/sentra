@@ -4,7 +4,7 @@
 // fall-bracelet relay. Node 22+; the only dependency is firebase-admin, and without it (or its
 // key) the relay works stream-only.
 //
-//   node --disable-warning=ExperimentalWarning server.mjs      (PORT, DB_PATH env vars optional)
+//   node --disable-warning=ExperimentalWarning server.mjs      (PORT, HOST, DB_PATH env vars optional)
 //
 // Naming: a "child" is the child's phone (Child mode), a "parent" a parent's phone (SENTRA Care).
 // Auth: every phone gets a random bearer token when it registers or links; only its SHA-256 is
@@ -18,6 +18,9 @@ import { fileURLToPath } from 'node:url';
 import { initPush, push } from './push.mjs';
 
 const PORT = Number(process.env.PORT ?? 8787);
+// Address to listen on. Unset means every interface (phones on the LAN); the VPS sets 127.0.0.1 so
+// only Caddy, and through it HTTPS, can reach the relay.
+const HOST = process.env.HOST || undefined;
 // Local network only by default: requests from public addresses are refused. LAN_ONLY=0 lifts it
 // once the relay sits behind HTTPS on the VPS.
 const LAN_ONLY = process.env.LAN_ONLY !== '0';
@@ -35,6 +38,12 @@ const REPLAY_WINDOW_MS = 24 * 3600_000; // what a reconnecting parent can catch 
 const LOCATION_TTL_MS = 30 * 24 * 3600_000; // privacy: fixes older than 30 days are deleted
 const KEEPALIVE_MS = 25_000;
 const MAX_POINTS_PER_POST = 500;
+// Abuse limits per client address. Invite codes are 6 digits, so wrong codes must be scarce: at
+// 10 per 15 min one address needs ~1,500 days on average to hit a live code. Registration is open,
+// so it is capped too, to keep a script from filling the disk.
+const RATE_WINDOW_MS = 15 * 60_000;
+const LINK_FAILS_PER_WINDOW = Number(process.env.LINK_FAILS_PER_WINDOW ?? 10);
+const REGISTRATIONS_PER_WINDOW = Number(process.env.REGISTRATIONS_PER_WINDOW ?? 10);
 /** Full-screen alarms on the parents' phones, re-pushed until someone acknowledges. */
 const ALARM_TYPES = ['OFF_ROUTE', 'SLEEVE_DISCONNECTED', 'OFFLINE'];
 const isAlarm = (type) => ALARM_TYPES.includes(type);
@@ -213,7 +222,7 @@ function backOnline(w) {
 // --- HTTP -------------------------------------------------------------------------------------
 
 class HttpError extends Error {
-  constructor(status, message) { super(message); this.status = status; }
+  constructor(status, message, retryAfter) { super(message); this.status = status; this.retryAfter = retryAfter; }
 }
 
 async function body(req) {
@@ -245,6 +254,37 @@ function parentAuth(req) {
   return c;
 }
 
+/**
+ * The caller's address. Behind Caddy the socket is loopback and the real client is the last entry
+ * Caddy put in X-Forwarded-For; the header is ignored from anyone else, who could forge it.
+ */
+function clientIp(req) {
+  const sock = (req.socket.remoteAddress ?? '').replace(/^::ffff:/, '');
+  if (sock !== '127.0.0.1' && sock !== '::1') return sock;
+  const fwd = String(req.headers['x-forwarded-for'] ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  return fwd.at(-1) ?? sock;
+}
+
+/** Fixed-window counters per address: [check] refuses once [max] is used up, [hit] spends one. */
+function limiter(max) {
+  const seen = new Map(); // ip -> { n, resetAt }
+  const entry = (ip) => {
+    let e = seen.get(ip);
+    if (!e || e.resetAt <= now()) seen.set(ip, (e = { n: 0, resetAt: now() + RATE_WINDOW_MS }));
+    return e;
+  };
+  return {
+    check(ip) {
+      const e = entry(ip);
+      if (e.n >= max) throw new HttpError(429, 'too many attempts, try again later', Math.ceil((e.resetAt - now()) / 1000));
+    },
+    hit(ip) { entry(ip).n++; },
+    purge() { for (const [ip, e] of seen) if (e.resetAt <= now()) seen.delete(ip); },
+  };
+}
+const linkFails = limiter(LINK_FAILS_PER_WINDOW);
+const registrations = limiter(REGISTRATIONS_PER_WINDOW);
+
 const str = (v, max = 80) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 const int = (v) => (v != null && v !== '' && Number.isFinite(Number(v)) ? Math.trunc(Number(v)) : null);
 const num = (v) => (v != null && v !== '' && Number.isFinite(Number(v)) ? Number(v) : null);
@@ -275,7 +315,10 @@ const routes = {
 
   /** The child's phone registers once and keeps the token. */
   'POST /v1/children': async (req) => {
+    const ip = clientIp(req);
+    registrations.check(ip);
     const b = await body(req);
+    registrations.hit(ip);
     const name = str(b.name) || 'Child';
     const token = newToken();
     const { lastInsertRowid } = q.addChild.run(name, sha(token), now());
@@ -298,9 +341,14 @@ const routes = {
 
   /** A parent links with an invite code; send an existing parent token to follow another child. */
   'POST /v1/link': async (req) => {
+    const ip = clientIp(req);
+    linkFails.check(ip); // only wrong codes count, so a family linking several phones is not slowed
     const b = await body(req);
     const row = q.takeInvite.get(str(b.code, 12), now());
-    if (!row) throw new HttpError(404, 'invite code not found or expired');
+    if (!row) {
+      linkFails.hit(ip);
+      throw new HttpError(404, 'invite code not found or expired');
+    }
     let parent = bearer(req) && q.parentByToken.get(bearer(req));
     let token = null;
     if (!parent) {
@@ -496,7 +544,9 @@ const server = http.createServer(async (req, res) => {
   } catch (err) {
     const status = err.status ?? 500;
     if (status === 500) console.error(err);
-    if (!res.headersSent) res.writeHead(status, { 'Content-Type': 'application/json' });
+    if (!res.headersSent) {
+      res.writeHead(status, { 'Content-Type': 'application/json', ...(err.retryAfter ? { 'Retry-After': String(err.retryAfter) } : {}) });
+    }
     res.end(JSON.stringify({ error: err.message }));
   }
 });
@@ -533,8 +583,10 @@ setInterval(() => {
     lastPurge = t;
     const { changes } = q.purgeLocations.run(t - LOCATION_TTL_MS);
     if (changes) console.log(`purged ${changes} old location fixes`);
+    linkFails.purge();
+    registrations.purge();
   }
 }, TICK_MS).unref();
 
 await initPush();
-server.listen(PORT, () => console.log(`relay listening on :${PORT}, db ${DB_PATH}${LAN_ONLY ? ', local network only' : ''}`));
+server.listen(PORT, HOST, () => console.log(`relay listening on ${HOST ?? ''}:${PORT}, db ${DB_PATH}${LAN_ONLY ? ', local network only' : ''}`));

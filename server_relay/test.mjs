@@ -11,11 +11,13 @@ const PORT = 18788;
 const base = `http://127.0.0.1:${PORT}`;
 // Short timers so the 60-second offline alarm and the re-push can be watched in a few seconds.
 const OFFLINE_NAV_MS = 1500, ESCALATE_AFTER_MS = 1200;
+const LIMIT = 3; // abuse limits, small so the test is quick
 const server = spawn(process.execPath, ['--disable-warning=ExperimentalWarning', fileURLToPath(new URL('./server.mjs', import.meta.url))], {
   env: {
     ...process.env, PORT: String(PORT), DB_PATH: join(tmpdir(), `sentra-relay-test-${process.pid}.db`),
     OFFLINE_NAV_MS: String(OFFLINE_NAV_MS), OFFLINE_IDLE_MS: '600000', TICK_MS: '200',
     ESCALATE_AFTER_MS: String(ESCALATE_AFTER_MS), FIREBASE_KEY: '/nonexistent',
+    LINK_FAILS_PER_WINDOW: String(LIMIT), REGISTRATIONS_PER_WINDOW: String(LIMIT),
   },
   stdio: ['ignore', 'pipe', 'inherit'],
 });
@@ -204,6 +206,22 @@ try {
 
   await api('DELETE', `/v1/parents/${c.parentId}`, w.token);
   assert.equal((await api('GET', '/v1/dashboard', c.token)).json.children.length, 0, 'unlinked parent sees nothing');
+
+  // --- Abuse limits: per client address, which behind Caddy is the last X-Forwarded-For entry ----
+  const from = (ip, path, body, token) => fetch(base + path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': `6.6.6.6, ${ip}`, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify(body),
+  });
+  for (let i = 0; i < LIMIT; i++) assert.equal((await from('203.0.113.7', '/v1/link', { code: '000000' })).status, 404);
+  const blocked = await from('203.0.113.7', '/v1/link', { code: '000000' });
+  assert.equal(blocked.status, 429, 'wrong invite codes are limited per address');
+  assert.ok(Number(blocked.headers.get('retry-after')) > 0, 'Retry-After sent');
+  const inv2 = (await api('POST', '/v1/invites', w.token)).json;
+  assert.equal((await from('203.0.113.7', '/v1/link', { code: inv2.code })).status, 429, 'even a right code waits once blocked');
+  assert.equal((await from('203.0.113.8', '/v1/link', { code: inv2.code, name: 'Ayah' })).status, 200, 'other addresses unaffected');
+  for (let i = 0; i < LIMIT; i++) assert.equal((await from('203.0.113.9', '/v1/children', { name: 'x' })).status, 200);
+  assert.equal((await from('203.0.113.9', '/v1/children', { name: 'x' })).status, 429, 'registration is limited per address');
 
   console.log('relay tests passed');
 } finally {

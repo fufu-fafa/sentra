@@ -7,7 +7,7 @@ SQLite; the one package is `firebase-admin`, and without it or its key the relay
 
 | | |
 |---|---|
-| `server.mjs` | The relay: HTTP API, SQLite (`node:sqlite`), SSE stream, offline and re-push timers. `PORT` (default 8787), `DB_PATH` (default `relay.db` here), `LAN_ONLY` (default on); `OFFLINE_NAV_MS`, `OFFLINE_IDLE_MS`, `TICK_MS`, `ESCALATE_AFTER_MS` for testing |
+| `server.mjs` | The relay: HTTP API, SQLite (`node:sqlite`), SSE stream, offline and re-push timers. `PORT` (default 8787), `HOST` (default all interfaces), `DB_PATH` (default `relay.db` here), `LAN_ONLY` (default on), `LINK_FAILS_PER_WINDOW` and `REGISTRATIONS_PER_WINDOW` (default 10 per 15 min per address); `OFFLINE_NAV_MS`, `OFFLINE_IDLE_MS`, `TICK_MS`, `ESCALATE_AFTER_MS` for testing |
 | `web/index.html` | SENTRA Care in a browser, served at `/`: map (Leaflet 1.9.4 + OpenStreetMap, loaded from unpkg), status, history, alarm. Same look as the app's SENTRA Care (lavender, pink): per child a card with status, map, Trip History (trips grouped from the events, like the app) and Alerts. Reads the stream with `fetch` because `EventSource` cannot send the bearer token |
 | `push.mjs` | FCM push: high priority for OFF_ROUTE, SLEEVE_DISCONNECTED, OFFLINE; normal for ARRIVED, NAV_START, TEST |
 | `test.mjs` | End-to-end test against a throwaway database |
@@ -53,7 +53,7 @@ The WiFi must be set to **Private** in Windows (a Public network blocks the phon
 files are kept with CRLF line endings (`.gitattributes`); don't let an editor save them as LF.
 
 By default the relay only answers the local network (requests from public addresses get `403`).
-On the VPS, behind Caddy and HTTPS, set `LAN_ONLY=0`.
+On the VPS, behind Caddy and HTTPS, set `LAN_ONLY=0` and `HOST=127.0.0.1` so the relay is reachable only through Caddy. Behind Caddy the client address comes from the last `X-Forwarded-For` entry (trusted only from loopback); wrong invite codes and registrations are limited per address and answered with 429 and `Retry-After`.
 
 ## The app and a local relay
 
