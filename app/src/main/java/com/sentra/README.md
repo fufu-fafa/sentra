@@ -19,7 +19,7 @@ packages below.
 | [`care/`](care/README.md) | SENTRA Care: live stream, push, alarm screen, history helpers |
 | [`data/`](data/README.md) | Room database, settings, outbox uploader, CSV test logger |
 | [`nav/`](nav/README.md) | Geometry and the §9.5 navigation state machine (pure Kotlin) |
-| [`relay/`](relay/README.md) | HTTP client for the relay and relay discovery on the WiFi |
+| [`relay/`](relay/README.md) | HTTP client for the relay |
 | [`ui/`](ui/README.md) | Compose screens for both modes, theme, map, `AppViewModel` |
 
 ## How it works

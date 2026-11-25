@@ -31,7 +31,7 @@ class SentraApp : Application() {
         val settings = SettingsRepository(this)
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         child = ChildManager(this, settings, AppDatabase.create(this), scope)
-        care = CareManager(this, settings, alerts, scope, child.finder) { child.appSettings.value }
+        care = CareManager(this, settings, alerts, scope) { child.appSettings.value }
         child.start()
         care.start()
     }

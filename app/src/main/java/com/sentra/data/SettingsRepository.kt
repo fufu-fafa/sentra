@@ -1,7 +1,9 @@
 package com.sentra.data
 
 import android.content.Context
+import androidx.datastore.core.DataMigration
 import androidx.datastore.preferences.core.MutablePreferences
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
@@ -29,10 +31,8 @@ data class AppSettings(
     val sleeveName: String = "",
     /** What the parents see. An alias, not the child's real name. */
     val childName: String = "Child",
-    /** The relay, e.g. https://relay.example.id; blank = no relay, everything stays on this phone. */
+    /** The VPS relay (`default_relay_url`). */
     val relayUrl: String = "",
-    /** The relay's own id, so a new address for the same relay keeps this phone's links. */
-    val relayId: String? = null,
     /** This phone's key as the child's phone on the relay, once registered. */
     val childToken: String? = null,
     /** This phone's key as a parent on the relay, once linked. */
@@ -50,11 +50,36 @@ data class AppSettings(
     val simulatedGps: Boolean = false,
 )
 
-private val Context.dataStore by preferencesDataStore("settings")
+private val Context.dataStore by preferencesDataStore(
+    name = "settings",
+    produceMigrations = { listOf(MoveToVpsRelay(it.getString(R.string.default_relay_url))) },
+)
+
+/**
+ * Earlier builds saved a relay address. The app now always uses the VPS, so a saved one is dropped,
+ * and if it was a different relay, so are that relay's keys and cursors.
+ */
+private class MoveToVpsRelay(private val vpsUrl: String) : DataMigration<Preferences> {
+    private val savedUrl = stringPreferencesKey("relay_url")
+
+    override suspend fun shouldMigrate(currentData: Preferences) = savedUrl in currentData
+
+    override suspend fun migrate(currentData: Preferences): Preferences = currentData.toMutablePreferences().apply {
+        if (this[savedUrl]?.trimEnd('/') != vpsUrl) {
+            // "wearer_token" and "caregiver_token" are the child and parent keys (see Keys).
+            listOf("wearer_token", "caregiver_token").forEach { remove(stringPreferencesKey(it)) }
+            listOf("acks_since", "last_stream_event_id").forEach { remove(longPreferencesKey(it)) }
+        }
+        remove(savedUrl)
+        remove(stringPreferencesKey("relay_id"))
+        remove(booleanPreferencesKey("moved_to_vps_relay"))
+    }
+
+    override suspend fun cleanUp() = Unit
+}
 
 class SettingsRepository(private val context: Context) {
-    /** Debug builds point at a relay on the development computer; release builds start with none. */
-    private val defaultRelayUrl = context.getString(R.string.default_relay_url)
+    private val vpsRelayUrl = context.getString(R.string.default_relay_url)
 
     private object Keys {
         val mode = stringPreferencesKey("app_mode")
@@ -62,8 +87,6 @@ class SettingsRepository(private val context: Context) {
         val name = stringPreferencesKey("device_name")
         val sleeveName = stringPreferencesKey("sleeve_name")
         val childName = stringPreferencesKey("child_name")
-        val relayUrl = stringPreferencesKey("relay_url")
-        val relayId = stringPreferencesKey("relay_id")
         // Stored under fall-bracelet's old names, so phones that were already linked stay linked.
         val childToken = stringPreferencesKey("wearer_token")
         val parentToken = stringPreferencesKey("caregiver_token")
@@ -82,8 +105,7 @@ class SettingsRepository(private val context: Context) {
             deviceName = p[Keys.name],
             sleeveName = p[Keys.sleeveName] ?: "",
             childName = p[Keys.childName] ?: "Child",
-            relayUrl = p[Keys.relayUrl] ?: defaultRelayUrl,
-            relayId = p[Keys.relayId],
+            relayUrl = vpsRelayUrl,
             childToken = p[Keys.childToken],
             parentToken = p[Keys.parentToken],
             parentName = p[Keys.parentName] ?: "",
@@ -107,21 +129,6 @@ class SettingsRepository(private val context: Context) {
     suspend fun setSelectedRoute(id: Long?) = edit { if (id == null) it.remove(Keys.selectedRoute) else it[Keys.selectedRoute] = id }
     suspend fun setSimulatedSleeve(on: Boolean) = edit { it[Keys.simulatedSleeve] = on }
     suspend fun setSimulatedGps(on: Boolean) = edit { it[Keys.simulatedGps] = on }
-
-    /**
-     * Points the app at a relay. The same relay at a new address (a different WiFi, or the move to
-     * the VPS) keeps this phone's links; only a relay known to be a different one starts over. An
-     * address that can't be reached right now (relayId null) keeps them too.
-     */
-    suspend fun setRelay(url: String, relayId: String?) = edit {
-        val known = it[Keys.relayId]
-        val sameRelay = relayId == null || known == null || known == relayId
-        if (!sameRelay) {
-            it.remove(Keys.childToken); it.remove(Keys.parentToken); it.remove(Keys.acksSince); it.remove(Keys.lastStreamEventId)
-        }
-        it[Keys.relayUrl] = url.trim()
-        if (relayId != null) it[Keys.relayId] = relayId
-    }
 
     suspend fun setChildToken(token: String?) = edit { if (token == null) it.remove(Keys.childToken) else it[Keys.childToken] = token }
     suspend fun setParent(token: String?, name: String) = edit {

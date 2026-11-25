@@ -23,7 +23,7 @@ through [`alert.AlertRules`](../alert/README.md) to decide alarm, ring once, not
 
 ## Dependencies & relationships
 
-- Uses [`relay`](../relay/README.md) (`RelayClient`, `RelayFinder`, `RelayDiscovery`), [`alert`](../alert/README.md), [`data.SettingsRepository`](../data/README.md) and [`nav.GeoPoint`](../nav/README.md).
+- Uses [`relay`](../relay/README.md) (`RelayClient`), [`alert`](../alert/README.md), [`data.SettingsRepository`](../data/README.md) and [`nav.GeoPoint`](../nav/README.md).
 - External: Firebase Messaging (optional at runtime), the relay's `/v1/*` API.
 - Used by `AppViewModel` and `CareScreen` in [`ui`](../ui/README.md), and `MainActivity` (tells it when the app is visible).
 - Tested in `HistoryViewTest`, `CareTripsTest`, `ForegroundStartGateTest` and `UploaderTest` ([`app/src/test`](../../../../../test/README.md)).

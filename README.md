@@ -38,7 +38,7 @@ in a queue on the child's phone and are sent when the relay can be reached.
 | [`…/care/`](app/src/main/java/com/sentra/care/README.md) | SENTRA Care: live stream, push, alarm screen, history helpers |
 | [`…/data/`](app/src/main/java/com/sentra/data/README.md) | Room (routes, trips, outbox), settings, uploader, CSV test log |
 | [`…/nav/`](app/src/main/java/com/sentra/nav/README.md) | Geometry and the §9.5 navigation state machine |
-| [`…/relay/`](app/src/main/java/com/sentra/relay/README.md) | HTTP client for the relay, relay discovery on the WiFi |
+| [`…/relay/`](app/src/main/java/com/sentra/relay/README.md) | HTTP client for the relay |
 | [`…/ui/`](app/src/main/java/com/sentra/ui/README.md) | Compose screens for both modes, theme, map, view model |
 | [`app/src/main/res/`](app/src/main/res/README.md) | Icons, colours, window theme |
 | [`app/src/test/`](app/src/test/README.md) | JVM unit tests |
@@ -67,7 +67,8 @@ build; see [Push](server_relay/README.md#push-firebase-cloud-messaging-optional)
 2. Install the debug APK on a phone on the same WiFi and choose **Child**.
 3. **Settings → Test without hardware**: switch on **Simulated sleeve** and **Simulated GPS**, and tap
    **Add sample route**.
-4. **Settings → Parents**: **Find relay on this WiFi**, then **Invite parent** for a 6-digit code.
+4. **Settings → Parents**: **Invite parent** for a 6-digit code. (The app uses the VPS relay; for a
+   local one see [server_relay](server_relay/README.md#the-app-and-a-local-relay).)
 5. Open `http://<this computer>:8787/` in a browser (or a second phone in mode **Parent**) and
    type the code.
 6. **Home → Start Navigation** (it starts the selected route; with none selected it opens **Routes**). The position walks along the route; the phone speaks the turns,

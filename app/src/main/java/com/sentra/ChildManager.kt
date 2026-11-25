@@ -36,7 +36,6 @@ import com.sentra.nav.NavSnapshot
 import com.sentra.nav.NavState
 import com.sentra.relay.ChildRelay
 import com.sentra.relay.RelayException
-import com.sentra.relay.RelayFinder
 import com.sentra.service.SentraService
 import com.sentra.voice.Speaker
 import kotlinx.coroutines.CoroutineScope
@@ -99,8 +98,6 @@ class ChildManager(
     val logger = TestLogger(context)
 
     val relay = ChildRelay(settings) { appSettings.value }
-    /** Re-finds a relay on the local network when its address changes (e.g. a phone hotspot at the booth). */
-    val finder = RelayFinder(settings) { appSettings.value }
     private val uploader = Uploader(db.outbox(), relay)
 
     val routes = db.routes().all()
@@ -572,15 +569,7 @@ class ChildManager(
                 _relayError.value = error?.message
                 val took = System.currentTimeMillis() - started
                 if (error != null || took > 2_000) Log.i(TAG, "relay round took $took ms: ${error?.message ?: "ok"}")
-                if (error != null) {
-                    heartbeatDue = true
-                    // Unreachable: on a local network the relay may have moved to another address.
-                    if ((error as? RelayException)?.status == 0) {
-                        val scanStart = System.currentTimeMillis()
-                        val found = finder.afterFailure()
-                        Log.i(TAG, "relay scan after failure took ${System.currentTimeMillis() - scanStart} ms, found ${found?.url}")
-                    }
-                }
+                if (error != null) heartbeatDue = true
                 val out = db.outbox()
                 if (out.locationCount() > MAX_QUEUED_FIXES) out.trimLocations(MAX_QUEUED_FIXES)
                 _pending.value = out.pendingEvents().size + out.locationCount()

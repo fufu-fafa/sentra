@@ -11,7 +11,6 @@ import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -154,7 +153,7 @@ fun SwitchRow(title: String, body: String, checked: Boolean, onChange: (Boolean)
     }
 }
 
-/** Relay address, invites and linked parents. */
+/** Invites and linked parents. */
 @Composable
 private fun ParentsCard(vm: AppViewModel) {
     val settings by vm.settings.collectAsState()
@@ -162,8 +161,6 @@ private fun ParentsCard(vm: AppViewModel) {
     val invite by vm.invite.collectAsState()
     val parents by vm.parents.collectAsState()
     val message by vm.relayMessage.collectAsState()
-    val finding by vm.finding.collectAsState()
-    var url by remember(settings.relayUrl) { mutableStateOf(settings.relayUrl) }
     LaunchedEffect(settings.childToken, health?.parents) { vm.refreshParents() }
 
     Card {
@@ -202,18 +199,6 @@ private fun ParentsCard(vm: AppViewModel) {
         }
         message?.let { Text(it, color = AppTheme.extra.muted) }
         health?.error?.let { Text("Relay unreachable: $it", color = Tokens.Wrong, style = MaterialTheme.typography.bodySmall) }
-        Spacer(Modifier.height(12.dp))
-        OutlinedTextField(
-            value = url, onValueChange = { url = it },
-            label = { Text("Relay address") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-        )
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { vm.findRelay() }, enabled = !finding) { Text(if (finding) "Searching…" else "Find relay on this WiFi") }
-            if (url.trim() != settings.relayUrl) {
-                OutlinedButton(onClick = { vm.setRelayUrl(url) }) { Text("Save") }
-            }
-        }
     }
 }
 

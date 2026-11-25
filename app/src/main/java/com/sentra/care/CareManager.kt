@@ -12,9 +12,7 @@ import com.sentra.data.AppSettings
 import com.sentra.data.SettingsRepository
 import com.sentra.nav.GeoPoint
 import com.sentra.relay.RelayClient
-import com.sentra.relay.RelayDiscovery
 import com.sentra.relay.RelayException
-import com.sentra.relay.RelayFinder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -156,7 +154,6 @@ class CareManager(
     private val settings: SettingsRepository,
     private val alerts: AlertDispatcher,
     private val scope: CoroutineScope,
-    private val finder: RelayFinder,
     private val current: () -> AppSettings,
 ) {
     private val _children = MutableStateFlow<List<WatchedChild>>(emptyList())
@@ -262,17 +259,12 @@ class CareManager(
     private fun client() = current().let { RelayClient(it.relayUrl, it.parentToken) }
 
     /** Links to a child's phone with its invite code. A phone already linked keeps its key and follows one more. */
-    suspend fun link(relayUrl: String, code: String, name: String): Result<String> = runCatching {
-        if (relayUrl.trim() != current().relayUrl) settings.setRelay(relayUrl, RelayDiscovery.check(relayUrl.trim())?.relayId)
-        val token = current().parentToken
-        val r = RelayClient(relayUrl.trim(), token).post("/v1/link", JSONObject().put("code", code.trim()).put("name", name.trim()))
+    suspend fun link(code: String, name: String): Result<String> = runCatching {
+        val r = client().post("/v1/link", JSONObject().put("code", code.trim()).put("name", name.trim()))
         settings.setParent(r.optString("token").takeIf { it.isNotEmpty() && it != "null" }, name.trim())
         runCatching { refresh() }
         r.getJSONObject("child").getString("name")
     }.onFailure { Log.w(TAG, "link failed", it) }
-
-    /** "Find relay" on the link screen: scans the WiFi and returns the address it found. */
-    suspend fun findRelay(): String? = finder.findNow()?.url
 
     suspend fun refresh() {
         val c = client()
@@ -316,11 +308,8 @@ class CareManager(
                 backoff = 2_000L
             } catch (e: RelayException) {
                 _error.value = if (e.status == 401) "This phone's link was removed. Link it again." else "Relay unreachable: ${e.message}"
-                // Found at a new address: the settings change restarts the stream from start().
-                if (e.status == 0 && finder.afterFailure()?.url.let { it != null && it != url }) return
             } catch (e: Exception) {
                 _error.value = "Relay unreachable: ${e.message}"
-                if (finder.afterFailure()?.url.let { it != null && it != url }) return
             }
             _stream.value = StreamState.CONNECTING
             delay(backoff)

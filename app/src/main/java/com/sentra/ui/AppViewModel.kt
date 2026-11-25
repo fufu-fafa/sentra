@@ -12,7 +12,6 @@ import com.sentra.nav.GeoPoint
 import com.sentra.nav.NavEngine
 import com.sentra.relay.Invite
 import com.sentra.relay.LinkedParent
-import com.sentra.relay.RelayDiscovery
 import com.sentra.relay.RelayException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -172,23 +171,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         RelayHealth(s.relayUrl, s.childToken != null, err, n, pending)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    fun setRelayUrl(url: String) = viewModelScope.launch {
-        m.settings.setRelay(url, RelayDiscovery.check(url.trim())?.relayId)
-        m.syncNow()
-    }
-
-    private val _finding = MutableStateFlow(false)
-    val finding: StateFlow<Boolean> = _finding.asStateFlow()
-
-    /** Scans the WiFi for a relay and switches to it. */
-    fun findRelay() = viewModelScope.launch {
-        _finding.value = true
-        val found = m.finder.findNow()
-        _finding.value = false
-        _relayMessage.value = if (found == null) "No relay found on this WiFi." else "Relay found at ${found.url}"
-        if (found != null) m.syncNow()
-    }
-
     private val _invite = MutableStateFlow<Invite?>(null)
     val invite: StateFlow<Invite?> = _invite.asStateFlow()
     private val _parents = MutableStateFlow<List<LinkedParent>>(emptyList())
@@ -228,23 +210,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _linkResult = MutableStateFlow<String?>(null)
     val linkResult: StateFlow<String?> = _linkResult.asStateFlow()
 
-    fun link(url: String, code: String, name: String) = viewModelScope.launch {
-        _linkResult.value = cg.link(url, code, name).fold({ "$LINKED $it" }, {
+    fun link(code: String, name: String) = viewModelScope.launch {
+        _linkResult.value = cg.link(code, name).fold({ "$LINKED $it" }, {
             if ((it as? RelayException)?.status == 404) "Wrong or expired code. Ask for a new one."
             else "Could not link: ${it.message}"
         })
     }
 
     fun clearLinkResult() { _linkResult.value = null }
-
-    private val _findingForCare = MutableStateFlow(false)
-    val findingForCare: StateFlow<Boolean> = _findingForCare.asStateFlow()
-    fun findRelayForCare() = viewModelScope.launch {
-        _findingForCare.value = true
-        val url = cg.findRelay()
-        _findingForCare.value = false
-        if (url == null) _linkResult.value = "No relay found on this WiFi."
-    }
 
     fun signOutCare() = viewModelScope.launch {
         cg.signOut()

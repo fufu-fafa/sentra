@@ -10,10 +10,9 @@ Source sets of the [`app`](../README.md) module.
 | [`main/java/com/sentra/`](main/java/com/sentra/README.md) | All Kotlin source |
 | [`main/res/`](main/res/README.md) | Icons, colours, theme, strings, file paths |
 | `debug/AndroidManifest.xml` | Debug only: allows plain HTTP, so a relay on the local network works without TLS |
-| `debug/res/values/relay.xml` | Debug only: `default_relay_url` = `http://10.0.2.2:8787` (the computer running an emulator) |
 | [`test/`](test/README.md) | JVM unit tests |
 
 ## Key concepts
 
-Release builds have no default relay and require HTTPS; debug builds start at a local relay. A real
-phone cannot reach `10.0.2.2`, so it uses **Settings → Find relay on this WiFi** instead.
+All builds start at the VPS relay, `https://relay.sentra-relay.site`. The address can't be changed in
+the app (`default_relay_url`); plain HTTP works in debug builds only.

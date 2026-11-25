@@ -9,7 +9,7 @@ CSV test logger. Part of [`com.sentra`](../README.md).
 | File | What it does |
 |---|---|
 | `Db.kt` | Room entities `RouteEntity` (recorded route, points stored as `"lat,lon;…"`), `EventEntity` (outbox event; `id` is the `seq` the relay de-duplicates on), `LocationEntity` (queued fix), `TripEntity` (a finished trip for Route History); DAOs `RouteDao`, `OutboxDao`, `TripDao`; `AppDatabase` (`sentra.db`, version 2) |
-| `SettingsRepository.kt` | `AppMode` (CHILD / PARENT), `AppSettings` and their DataStore storage (`settings`): mode, sleeve address and name filter, child alias, relay URL and id, tokens, selected route, simulation switches |
+| `SettingsRepository.kt` | `AppMode` (CHILD / PARENT), `AppSettings` and their DataStore storage (`settings`): mode, sleeve address and name filter, child alias, relay tokens, selected route, simulation switches |
 | `Uploader.kt` | `Outbox` and `TelemetrySink` interfaces and `Uploader`, which sends queued events then fixes, oldest first, stopping at the first failure so order is kept |
 | `TestLogger.kt` | CSV per trial in `files/recordings/` for the tests of Desain Teknis Bab 10: obstacle readings, command-to-ACK times, GPS, navigation decisions, link changes |
 

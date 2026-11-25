@@ -57,9 +57,9 @@ On the VPS, behind Caddy and HTTPS, set `LAN_ONLY=0`.
 
 ## The app and a local relay
 
-Debug builds of the app start at `http://10.0.2.2:8787` (the computer running an emulator) and
-allow plain HTTP. A real phone on the same WiFi finds the relay with **Settings → Find relay on
-this WiFi**: it asks every address on its network for `/v1/health`.
+The app starts at the VPS relay, `https://relay.sentra-relay.site`. It has no address field.
+To test with a local relay, change `default_relay_url` in `app/src/main/res/values/strings.xml`,
+rebuild, and clear the app's data. Plain HTTP works in debug builds only.
 
 ## API
 

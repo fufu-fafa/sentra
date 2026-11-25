@@ -139,7 +139,7 @@ fun CareScreen(vm: AppViewModel) {
                     SentraLogo(130.dp, care = true)
                 }
                 Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    LinkCard(vm, settings.relayUrl, settings.parentName, onCancel = null) {}
+                    LinkCard(vm, settings.parentName, onCancel = null) {}
                     SoftButton("Use this phone as the child's phone", { vm.setMode(AppMode.CHILD) }, Modifier.fillMaxWidth(), icon = Icons.Rounded.SwapHoriz)
                     Spacer(Modifier.height(16.dp))
                 }
@@ -622,7 +622,7 @@ private fun CareSettingsTab(vm: AppViewModel) {
                 Text(settings.relayUrl, fontFamily = Mono, style = MaterialTheme.typography.bodySmall, color = AppTheme.extra.muted)
             }
             if (linking) {
-                LinkCard(vm, settings.relayUrl, settings.parentName, onCancel = { linking = false }) { linking = false }
+                LinkCard(vm, settings.parentName, onCancel = { linking = false }) { linking = false }
             } else {
                 SoftButton("Link another child", { vm.clearLinkResult(); linking = true }, Modifier.fillMaxWidth(), icon = Icons.Rounded.GroupAdd, color = Tokens.Pink, background = Tokens.PinkSoft)
             }
@@ -655,14 +655,11 @@ private fun CareSettingsTab(vm: AppViewModel) {
 }
 
 @Composable
-private fun LinkCard(vm: AppViewModel, relayUrl: String, savedName: String, onCancel: (() -> Unit)?, onDone: () -> Unit) {
+private fun LinkCard(vm: AppViewModel, savedName: String, onCancel: (() -> Unit)?, onDone: () -> Unit) {
     val result by vm.linkResult.collectAsState()
-    val finding by vm.findingForCare.collectAsState()
-    var url by remember { mutableStateOf(relayUrl) }
     var code by remember { mutableStateOf("") }
     var name by remember { mutableStateOf(savedName) }
     LaunchedEffect(result) { if (result?.startsWith(AppViewModel.LINKED) == true) onDone() }
-    LaunchedEffect(relayUrl) { url = relayUrl } // "Find relay" updates the stored address
     Card {
         SectionLabel("Link to the child's phone", icon = Icons.Rounded.GroupAdd, tint = Tokens.Pink)
         Text("On the child's phone: Settings → Invite parent. Type the 6-digit code here.", color = AppTheme.extra.muted)
@@ -677,17 +674,10 @@ private fun LinkCard(vm: AppViewModel, relayUrl: String, savedName: String, onCa
             value = name, onValueChange = { name = it.take(40) },
             label = { Text("Your name (shown as \"Seen by …\")") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
         )
-        OutlinedTextField(
-            value = url, onValueChange = { url = it },
-            label = { Text("Relay address") }, placeholder = { Text("https://…") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-        )
-        Spacer(Modifier.height(10.dp))
-        SoftButton(if (finding) "Searching…" else "Find relay on this WiFi", { vm.findRelayForCare() }, enabled = !finding, icon = Icons.Rounded.Router)
         Spacer(Modifier.height(10.dp))
         PrimaryButton(
-            "Link", { vm.link(url, code, name) },
-            enabled = code.length == 6 && name.isNotBlank() && url.isNotBlank(),
+            "Link", { vm.link(code, name) },
+            enabled = code.length == 6 && name.isNotBlank(),
             color = Tokens.Pink,
         )
         if (onCancel != null) {
