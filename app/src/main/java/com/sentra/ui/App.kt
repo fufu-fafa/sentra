@@ -55,6 +55,7 @@ sealed interface ChildPage {
     data object LiveLocation : ChildPage
     data object History : ChildPage
     data object Record : ChildPage
+    data object Find : ChildPage
     data object Demo : ChildPage
 
     companion object {
@@ -64,6 +65,7 @@ sealed interface ChildPage {
             LiveLocation -> "live"
             History -> "history"
             Record -> "record"
+            Find -> "find"
             Demo -> "demo"
         }
 
@@ -73,6 +75,7 @@ sealed interface ChildPage {
             s == "live" -> LiveLocation
             s == "history" -> History
             s == "record" -> Record
+            s == "find" -> Find
             s == "demo" -> Demo
             else -> null
         }
@@ -128,11 +131,12 @@ private fun ChildApp(vm: AppViewModel, enableBluetooth: () -> Unit) {
         BackHandler { back() }
         PageBackground {
             when (page) {
-                ChildPage.Routes -> RoutePicker(vm, onBack = ::back, onOpen = { open(ChildPage.RouteDetail(it)) }, onRecord = { open(ChildPage.Record) }, onHistory = { open(ChildPage.History) })
+                ChildPage.Routes -> RoutePicker(vm, onBack = ::back, onOpen = { open(ChildPage.RouteDetail(it)) }, onRecord = { open(ChildPage.Record) }, onFind = { open(ChildPage.Find) }, onHistory = { open(ChildPage.History) })
                 is ChildPage.RouteDetail -> RouteDetail(vm, page.id, onBack = ::back, onStarted = { stackText = "" })
                 ChildPage.LiveLocation -> LiveLocationScreen(vm, onBack = ::back, onResumeNav = { navHidden = false })
                 ChildPage.History -> RouteHistoryScreen(vm, onBack = ::back)
                 ChildPage.Record -> RecordRoute(vm, onClose = ::back)
+                ChildPage.Find -> FindRoute(vm, onClose = ::back)
                 ChildPage.Demo -> DemoScreen(vm, onBack = ::back)
             }
         }

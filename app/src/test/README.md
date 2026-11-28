@@ -8,6 +8,7 @@ Android types. Part of the [`app`](../../README.md) module; tests the code in
 
 | File (`java/com/sentra/`) | What it tests |
 |---|---|
+| `RoutePlannerTest.kt` | [`nav.RoutePlanner`](../main/java/com/sentra/nav/README.md): planned lines become start, turns, destination without false off-route on curves; reading the relay's reply |
 | `NavEngineTest.kt` | [`nav`](../main/java/com/sentra/nav/README.md): distance, bearing, turn classification, the §9.5 state machine |
 | `SentraProtocolTest.kt` | [`ble.SentraProtocol`](../main/java/com/sentra/ble/README.md): every message of Tabel 19 and 20, exactly as the firmware has them |
 | `FakeSleeveTest.kt` | [`ble.FakeSleeve`](../main/java/com/sentra/ble/README.md) behaves like the firmware (coroutines test) |

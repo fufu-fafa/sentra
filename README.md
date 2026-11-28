@@ -97,6 +97,10 @@ at a time, so disconnect nRF Connect first.
 - Commands are written with response, so a lost write is noticed. The time from a command to its
   ACK is shown in Demo Mode and logged for §10.3.
 - Locations are uploaded only while a trip runs.
+- Besides recording, a route can be planned: **Find Route** searches a place on OpenStreetMap and
+  asks the relay for a walking route from the phone's position (Photon and Valhalla, open source).
+  It is saved like a recorded route, so `NavEngine` is unchanged. OpenStreetMap often lacks
+  sidewalks and crossings, so the app tells the companion to walk a planned route once first.
 
 ## Not done yet
 

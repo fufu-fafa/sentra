@@ -5,8 +5,12 @@ import com.sentra.data.EventEntity
 import com.sentra.data.LocationEntity
 import com.sentra.data.SettingsRepository
 import com.sentra.data.TelemetrySink
+import com.sentra.nav.GeoPoint
+import com.sentra.nav.Place
+import com.sentra.nav.PlannedRoute
 import org.json.JSONArray
 import org.json.JSONObject
+import java.net.URLEncoder
 
 data class LinkedParent(val id: Long, val name: String, val linkedAt: Long)
 data class Invite(val code: String, val expiresAt: Long)
@@ -85,6 +89,32 @@ class ChildRelay(
         client().delete("/v1/parents/$id")
     }
 
+    /** Place search through the relay (OpenStreetMap data), preferring places near [near]. */
+    suspend fun searchPlaces(text: String, near: GeoPoint?): List<Place> {
+        ensureRegistered()
+        val q = buildString {
+            append("/v1/places?q=").append(URLEncoder.encode(text, "UTF-8"))
+            if (near != null) append("&lat=").append(near.lat).append("&lon=").append(near.lon)
+        }
+        return parsePlaces(call { client().get(q) })
+    }
+
+    /** A walking route from [from] to [to], planned by the relay's routing service. */
+    suspend fun planRoute(from: GeoPoint, to: GeoPoint): PlannedRoute {
+        ensureRegistered()
+        val body = JSONObject()
+            .put("from", JSONObject().put("lat", from.lat).put("lon", from.lon))
+            .put("to", JSONObject().put("lat", to.lat).put("lon", to.lon))
+        return parsePlan(call { client().post("/v1/routes/plan", body) })
+    }
+
+    private suspend fun <T> call(block: suspend () -> T): T = try {
+        block()
+    } catch (e: RelayException) {
+        forgetIfUnknown(e)
+        throw e
+    }
+
     /**
      * 401 means this relay doesn't know our key: its database was reset, or the address now leads
      * to a different relay. Drop the key so the next round registers again instead of failing forever.
@@ -94,6 +124,25 @@ class ChildRelay(
     }
 
     companion object {
+        fun parsePlaces(r: JSONObject): List<Place> {
+            val a = r.getJSONArray("places")
+            return List(a.length()) { i ->
+                val p = a.getJSONObject(i)
+                Place(p.getString("name"), p.optString("detail"), GeoPoint(p.getDouble("lat"), p.getDouble("lon")))
+            }
+        }
+
+        fun parsePlan(r: JSONObject): PlannedRoute {
+            val shape = r.getJSONArray("shape")
+            val maneuvers = r.getJSONArray("maneuvers")
+            return PlannedRoute(
+                shape = List(shape.length()) { i -> shape.getJSONArray(i).let { GeoPoint(it.getDouble(0), it.getDouble(1)) } },
+                maneuvers = List(maneuvers.length()) { i -> maneuvers.getJSONObject(i).getInt("at") },
+                lengthM = r.optDouble("lengthM", 0.0),
+                timeS = r.optInt("timeS"),
+            )
+        }
+
         fun eventJson(e: EventEntity): JSONObject = JSONObject()
             .put("deviceAddress", e.deviceAddress)
             .put("seq", e.id)

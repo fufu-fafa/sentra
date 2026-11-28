@@ -10,6 +10,9 @@ import com.sentra.data.AppMode
 import com.sentra.nav.Geo
 import com.sentra.nav.GeoPoint
 import com.sentra.nav.NavEngine
+import com.sentra.nav.Place
+import com.sentra.nav.PlannedRoute
+import com.sentra.nav.RoutePlanner
 import com.sentra.relay.Invite
 import com.sentra.relay.LinkedParent
 import com.sentra.relay.RelayException
@@ -22,6 +25,18 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
 import kotlin.math.roundToInt
+
+/** Find Route: searching for a place, then the walking route to it from where the phone is. */
+data class PlanUi(
+    val busy: Boolean = false,
+    /** Search results; null before the first search. */
+    val places: List<Place>? = null,
+    val chosen: Place? = null,
+    val route: PlannedRoute? = null,
+    /** The route as NavEngine walks it: start, turns, destination. */
+    val points: List<GeoPoint> = emptyList(),
+    val error: String? = null,
+)
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val m = app.child
@@ -145,6 +160,62 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         m.saveRoute(name, _draft.value)
         m.speak("Route saved")
         discardDraft()
+    }
+
+    // --- Find Route: search a place, plan the walk (OpenStreetMap through the relay) ---------
+
+    private val _plan = MutableStateFlow(PlanUi())
+    val plan: StateFlow<PlanUi> = _plan.asStateFlow()
+
+    fun searchPlaces(text: String) {
+        val t = text.trim()
+        if (t.length < 2 || _plan.value.busy) return
+        _plan.value = PlanUi(busy = true)
+        viewModelScope.launch {
+            _plan.value = try {
+                PlanUi(places = m.relay.searchPlaces(t, fix.value?.point))
+            } catch (e: RelayException) {
+                PlanUi(error = planError(e))
+            }
+        }
+    }
+
+    /** Plans the walk from this phone's GPS position to [place]. */
+    fun choosePlace(place: Place) {
+        val from = fix.value?.point
+        val places = _plan.value.places
+        if (from == null) {
+            _plan.value = _plan.value.copy(error = "Waiting for GPS: the route starts where this phone is.")
+            return
+        }
+        _plan.value = PlanUi(busy = true, places = places, chosen = place)
+        viewModelScope.launch {
+            _plan.value = try {
+                val route = m.relay.planRoute(from, place.point)
+                val points = RoutePlanner.toNavPoints(route)
+                if (points.size < 2) PlanUi(places = places, error = "You are already there.")
+                else PlanUi(places = places, chosen = place, route = route, points = points)
+            } catch (e: RelayException) {
+                PlanUi(places = places, error = planError(e))
+            }
+        }
+    }
+
+    /** Back from the route preview to the search results. */
+    fun backToPlaces() { _plan.value = PlanUi(places = _plan.value.places) }
+    fun clearPlan() { _plan.value = PlanUi() }
+
+    fun savePlannedRoute(name: String) = viewModelScope.launch {
+        val points = _plan.value.points
+        if (name.isBlank() || points.size < 2) return@launch
+        m.saveRoute(name, points)
+        _plan.value = PlanUi()
+    }
+
+    private fun planError(e: RelayException) = when (e.status) {
+        0 -> "Can't reach the relay. Check the internet connection."
+        429 -> "Too many searches. Try again in a few minutes."
+        else -> e.message ?: "Something went wrong."
     }
 
     /** A ready-made route for the simulated GPS, so navigation can be tried without recording one. */

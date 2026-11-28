@@ -1,6 +1,7 @@
 // End-to-end check of the relay against a throwaway database:
 //   node --disable-warning=ExperimentalWarning test.mjs
 import { spawn } from 'node:child_process';
+import http from 'node:http';
 import assert from 'node:assert/strict';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -12,12 +13,60 @@ const base = `http://127.0.0.1:${PORT}`;
 // Short timers so the 60-second offline alarm and the re-push can be watched in a few seconds.
 const OFFLINE_NAV_MS = 1500, ESCALATE_AFTER_MS = 1200;
 const LIMIT = 3; // abuse limits, small so the test is quick
+const PLAN_LIMIT = 6;
+
+// A stand-in for Photon (place search) and Valhalla (walking routes), so the test needs no internet.
+function encodePolyline(points, precision = 6) {
+  const factor = 10 ** precision;
+  let out = '', pLat = 0, pLon = 0;
+  const put = (v) => {
+    v = v < 0 ? ~(v << 1) : v << 1;
+    while (v >= 0x20) { out += String.fromCharCode((0x20 | (v & 0x1f)) + 63); v >>= 5; }
+    out += String.fromCharCode(v + 63);
+  };
+  for (const [lat, lon] of points) {
+    const a = Math.round(lat * factor), b = Math.round(lon * factor);
+    put(a - pLat); put(b - pLon);
+    pLat = a; pLon = b;
+  }
+  return out;
+}
+const SHAPE = [[-6.9025, 107.6188], [-6.9025, 107.6196], [-6.9032, 107.6196]];
+const upstreamSeen = [];
+const upstreamServer = http.createServer(async (req, res) => {
+  let raw = '';
+  for await (const c of req) raw += c;
+  const url = new URL(req.url, 'http://x');
+  upstreamSeen.push({ path: url.pathname, query: url.searchParams, body: raw ? JSON.parse(raw) : null, ua: req.headers['user-agent'] });
+  res.setHeader('Content-Type', 'application/json');
+  if (url.pathname === '/photon') {
+    res.end(JSON.stringify({ features: [
+      { geometry: { coordinates: [107.6187, -6.9025] }, properties: { name: 'Gedung Sate', street: 'Jalan Diponegoro', city: 'Bandung' } },
+      { geometry: { coordinates: [] }, properties: { name: 'broken' } },
+    ] }));
+  } else if (JSON.parse(raw).locations[1].lat === 0) {
+    res.statusCode = 400;
+    res.end(JSON.stringify({ error_code: 171, error: 'No suitable edges near location' }));
+  } else {
+    res.end(JSON.stringify({ trip: { summary: { length: 0.166, time: 130 }, legs: [{
+      shape: encodePolyline(SHAPE),
+      maneuvers: [
+        { type: 2, instruction: 'Walk east.', begin_shape_index: 0 },
+        { type: 10, instruction: 'Turn right.', begin_shape_index: 1 },
+        { type: 4, instruction: 'You have arrived.', begin_shape_index: 2 },
+      ],
+    }] } }));
+  }
+});
+await new Promise((ok) => upstreamServer.listen(0, '127.0.0.1', ok));
+const upstreamBase = `http://127.0.0.1:${upstreamServer.address().port}`;
 const server = spawn(process.execPath, ['--disable-warning=ExperimentalWarning', fileURLToPath(new URL('./server.mjs', import.meta.url))], {
   env: {
     ...process.env, PORT: String(PORT), DB_PATH: join(tmpdir(), `sentra-relay-test-${process.pid}.db`),
     OFFLINE_NAV_MS: String(OFFLINE_NAV_MS), OFFLINE_IDLE_MS: '600000', TICK_MS: '200',
     ESCALATE_AFTER_MS: String(ESCALATE_AFTER_MS), FIREBASE_KEY: '/nonexistent',
     LINK_FAILS_PER_WINDOW: String(LIMIT), REGISTRATIONS_PER_WINDOW: String(LIMIT),
+    PHOTON_URL: `${upstreamBase}/photon`, VALHALLA_URL: `${upstreamBase}/valhalla`, PLANNING_PER_WINDOW: String(PLAN_LIMIT),
   },
   stdio: ['ignore', 'pipe', 'inherit'],
 });
@@ -223,7 +272,35 @@ try {
   for (let i = 0; i < LIMIT; i++) assert.equal((await from('203.0.113.9', '/v1/children', { name: 'x' })).status, 200);
   assert.equal((await from('203.0.113.9', '/v1/children', { name: 'x' })).status, 429, 'registration is limited per address');
 
+  // --- Place search and walking routes, against the stand-in services --------------------------
+  const kid = (await api('POST', '/v1/children', null, { name: 'Planner' })).json;
+  assert.equal((await api('GET', '/v1/places?q=gedung', null)).status, 401, 'planning needs a phone token');
+  const found = await api('GET', '/v1/places?q=gedung%20sate&lat=-6.9&lon=107.6', kid.token);
+  assert.equal(found.status, 200);
+  assert.deepEqual(found.json.places, [{ name: 'Gedung Sate', detail: 'Jalan Diponegoro, Bandung', lat: -6.9025, lon: 107.6187 }], 'broken results dropped');
+  const photonCall = upstreamSeen.find((u) => u.path === '/photon');
+  assert.equal(photonCall.query.get('lat'), '-6.9', 'search prefers places near the phone');
+  assert.equal(photonCall.ua, 'sentra-relay/1.0');
+  assert.equal((await api('GET', '/v1/places?q=x', kid.token)).status, 400, 'too short a search');
+
+  const plan = await api('POST', '/v1/routes/plan', kid.token, { from: { lat: -6.9025, lon: 107.6188 }, to: { lat: -6.9032, lon: 107.6196 } });
+  assert.equal(plan.status, 200);
+  assert.equal(plan.json.lengthM, 166);
+  assert.equal(plan.json.timeS, 130);
+  assert.deepEqual(plan.json.shape, SHAPE, 'polyline decoded');
+  assert.deepEqual(plan.json.maneuvers.map((m) => m.at), [0, 1, 2]);
+  const valhallaCall = upstreamSeen.find((u) => u.path === '/valhalla');
+  assert.equal(valhallaCall.body.costing, 'pedestrian');
+  assert.equal(valhallaCall.body.costing_options.pedestrian.type, 'blind');
+  const noWay = await api('POST', '/v1/routes/plan', kid.token, { from: { lat: 0.0001, lon: 0 }, to: { lat: 0, lon: 0 } });
+  assert.equal(noWay.status, 422, 'no route is a clear answer, not a server error');
+  assert.equal((await api('POST', '/v1/routes/plan', kid.token, { from: { lat: -6.9, lon: 107.6 }, to: { lat: -7.9, lon: 107.6 } })).status, 422, 'too far to walk');
+  assert.equal((await api('POST', '/v1/routes/plan', kid.token, { from: { lat: 1 } })).status, 400);
+  for (let i = 0; i < PLAN_LIMIT - 6; i++) await api('GET', '/v1/places?q=gedung', kid.token);
+  assert.equal((await api('GET', '/v1/places?q=gedung', kid.token)).status, 429, 'planning is limited per phone');
+
   console.log('relay tests passed');
 } finally {
   server.kill();
+  upstreamServer.close();
 }

@@ -25,9 +25,13 @@ import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.Route
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.TravelExplore
 import androidx.compose.material.icons.rounded.Straighten
 import androidx.compose.material.icons.rounded.WarningAmber
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -37,6 +41,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,6 +54,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.sentra.data.RouteEntity
 import com.sentra.data.TripEntity
@@ -75,12 +81,14 @@ private val EN = Locale.ENGLISH
 
 /** Routes: the saved routes as destinations, with a filter box, like "Search destinations…". */
 @Composable
-fun RoutePicker(vm: AppViewModel, onBack: () -> Unit, onOpen: (Long) -> Unit, onRecord: () -> Unit, onHistory: () -> Unit) {
+fun RoutePicker(vm: AppViewModel, onBack: () -> Unit, onOpen: (Long) -> Unit, onRecord: () -> Unit, onFind: () -> Unit, onHistory: () -> Unit) {
     val routes by vm.routes.collectAsState()
     val settings by vm.settings.collectAsState()
     val nav by vm.nav.collectAsState()
     var query by rememberSaveable { mutableStateOf("") }
     var picked by rememberSaveable { mutableStateOf(settings.selectedRouteId ?: -1L) }
+    // A route saved on another page (Find Route, Record Route) becomes the selected one: follow it.
+    LaunchedEffect(settings.selectedRouteId) { settings.selectedRouteId?.let { picked = it } }
     val shown = routes.filter { query.isBlank() || it.name.contains(query.trim(), ignoreCase = true) }
 
     Column(Modifier.fillMaxSize().navigationBarsPadding()) {
@@ -105,7 +113,7 @@ fun RoutePicker(vm: AppViewModel, onBack: () -> Unit, onOpen: (Long) -> Unit, on
                 Card {
                     Text("No routes yet.", style = MaterialTheme.typography.titleMedium, color = Tokens.Text)
                     Text(
-                        "Record a route by walking it once with the child: mark the start, every turn, and the destination.",
+                        "Find a route to a place on the map, or record one by walking it once with the child: mark the start, every turn, and the destination.",
                         color = AppTheme.extra.muted, style = MaterialTheme.typography.bodyMedium,
                     )
                 }
@@ -120,8 +128,9 @@ fun RoutePicker(vm: AppViewModel, onBack: () -> Unit, onOpen: (Long) -> Unit, on
                     onClick = { picked = r.id },
                 )
             }
+            SoftButton("Find route to a place", onFind, Modifier.fillMaxWidth(), icon = Icons.Rounded.TravelExplore, enabled = !nav.active)
             SoftButton("Record new route", onRecord, Modifier.fillMaxWidth(), icon = Icons.Rounded.Add, enabled = !nav.active)
-            if (nav.active) Text("Stop navigation first to record.", color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall)
+            if (nav.active) Text("Stop navigation first to add a route.", color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall)
             Spacer(Modifier.height(8.dp))
         }
         Box(Modifier.padding(16.dp)) {
@@ -281,6 +290,112 @@ private fun TripRow(t: TripEntity) {
             if (t.arrived) Pill("Arrived", Tokens.Correct, Tokens.CorrectBg) else Pill("Stopped", Tokens.Warn, Tokens.WarnBg)
         },
     )
+}
+
+// --- Find Route: search a place, preview the walk, save it ------------------------------------
+
+/**
+ * Search a place on OpenStreetMap and plan the walk to it from where this phone is, through the
+ * relay. The route is saved like a recorded one: start, turns, destination.
+ */
+@Composable
+fun FindRoute(vm: AppViewModel, onClose: () -> Unit) {
+    val plan by vm.plan.collectAsState()
+    val fix by vm.fix.collectAsState()
+    var text by rememberSaveable { mutableStateOf("") }
+    var name by rememberSaveable(plan.chosen) { mutableStateOf(plan.chosen?.name?.take(40).orEmpty()) }
+    val previewing = plan.route != null
+    val back = { if (previewing) vm.backToPlaces() else { vm.clearPlan(); onClose() } }
+
+    // GPS on while this screen is open: the route starts where the phone is.
+    DisposableEffect(Unit) {
+        vm.setFixWanted(true)
+        onDispose { vm.setFixWanted(false) }
+    }
+    androidx.activity.compose.BackHandler { back() }
+
+    Column(Modifier.fillMaxSize().navigationBarsPadding().verticalScroll(rememberScrollState())) {
+        TopBar("Find Route", back)
+        Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            val route = plan.route
+            if (route == null) {
+                OutlinedTextField(
+                    value = text, onValueChange = { text = it.take(100) },
+                    placeholder = { Text("Search a place: school, park, street…") },
+                    leadingIcon = { Icon(Icons.Rounded.Search, null, tint = AppTheme.extra.muted) },
+                    singleLine = true, shape = RoundedCornerShape(50),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { vm.searchPlaces(text) }),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Tokens.Card, unfocusedContainerColor = Tokens.Card,
+                        unfocusedBorderColor = Tokens.Border, focusedBorderColor = Tokens.Accent,
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                PrimaryButton("Search", { vm.searchPlaces(text) }, enabled = text.trim().length >= 2 && !plan.busy, icon = Icons.Rounded.Search)
+                if (fix == null) Text("Waiting for GPS…", color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall)
+            }
+            if (plan.busy) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp, color = Tokens.Accent)
+                    Spacer(Modifier.width(10.dp))
+                    Text(if (plan.chosen != null) "Planning the walk to ${plan.chosen?.name}…" else "Searching…", color = AppTheme.extra.muted)
+                }
+            }
+            plan.error?.let {
+                Text(it, color = Tokens.Wrong, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Assertive })
+            }
+            if (route == null) {
+                val places = plan.places
+                if (places != null && places.isEmpty()) Text("Nothing found. Try another name.", color = AppTheme.extra.muted)
+                places?.forEach { p ->
+                    val away = fix?.point?.let { distanceText(Geo.distanceM(it, p.point)) }
+                    ListRow(
+                        p.name, listOfNotNull(p.detail.ifBlank { null }, away?.let { "$it away" }).joinToString(" · ").ifBlank { null },
+                        Icons.Rounded.LocationOn, tint = Tokens.Pink, chevron = true,
+                        onClick = { if (!plan.busy) vm.choosePlace(p) },
+                    )
+                }
+            } else {
+                OsmMap(
+                    MapContent(marker = fix?.point, accuracyM = fix?.accuracyM, track = route.shape, route = plan.points),
+                    Modifier.fillMaxWidth().height(280.dp).clip(RoundedCornerShape(24.dp)),
+                    follow = false,
+                )
+                Card {
+                    SectionLabel(plan.chosen?.name ?: "Route", icon = Icons.Rounded.LocationOn, tint = Tokens.Pink)
+                    // Measured over the saved points, as the route list and navigation measure it.
+                    val length = routeLengthM(plan.points)
+                    InfoLine(Icons.Rounded.Schedule, etaText(length))
+                    InfoLine(Icons.Rounded.Straighten, "${distanceText(length)} · ${plan.points.size} points")
+                    Spacer(Modifier.height(6.dp))
+                    PointList(plan.points)
+                }
+                Card {
+                    Row(verticalAlignment = Alignment.Top) {
+                        Icon(Icons.Rounded.WarningAmber, null, tint = Tokens.Warn, modifier = Modifier.size(22.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            "Planned from OpenStreetMap, which often misses sidewalks and crossings. " +
+                                "Walk this route once with the child before they use it.",
+                            color = Tokens.Text, style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                }
+                Card {
+                    OutlinedTextField(
+                        value = name, onValueChange = { name = it.take(40) },
+                        label = { Text("Destination name") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    PrimaryButton("Save route", { vm.savePlannedRoute(name); onClose() }, enabled = name.isNotBlank(), icon = Icons.Rounded.Route)
+                }
+                SoftButton("Choose another place", vm::backToPlaces, Modifier.fillMaxWidth())
+            }
+            Text("Search and maps © OpenStreetMap contributors", color = AppTheme.extra.muted, style = MaterialTheme.typography.bodySmall)
+            Spacer(Modifier.height(16.dp))
+        }
+    }
 }
 
 // --- Record Route (§9.4) -----------------------------------------------------------------------

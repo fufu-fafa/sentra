@@ -9,7 +9,7 @@ The parent's side of the relay lives in [`care`](../care/README.md).
 | File | What it does |
 |---|---|
 | `RelayClient.kt` | Minimal JSON-over-`HttpURLConnection` client (`get`, `post`, `put`, `delete`, `open` for the SSE stream). `RelayException.status` 0 means the relay could not be reached |
-| `ChildRelay.kt` | The child phone's calls: register, rename, upload events and locations (it is the `TelemetrySink` of [`data.Uploader`](../data/README.md)), heartbeat, invite codes, list and remove linked parents |
+| `ChildRelay.kt` | The child phone's calls: register, rename, upload events and locations (it is the `TelemetrySink` of [`data.Uploader`](../data/README.md)), heartbeat, invite codes, list and remove linked parents, place search and walking-route planning (`searchPlaces`, `planRoute`) |
 
 ## Dependencies & relationships
 

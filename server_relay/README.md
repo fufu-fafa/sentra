@@ -7,7 +7,7 @@ SQLite; the one package is `firebase-admin`, and without it or its key the relay
 
 | | |
 |---|---|
-| `server.mjs` | The relay: HTTP API, SQLite (`node:sqlite`), SSE stream, offline and re-push timers. `PORT` (default 8787), `HOST` (default all interfaces), `DB_PATH` (default `relay.db` here), `LAN_ONLY` (default on), `LINK_FAILS_PER_WINDOW` and `REGISTRATIONS_PER_WINDOW` (default 10 per 15 min per address); `OFFLINE_NAV_MS`, `OFFLINE_IDLE_MS`, `TICK_MS`, `ESCALATE_AFTER_MS` for testing |
+| `server.mjs` | The relay: HTTP API, SQLite (`node:sqlite`), SSE stream, offline and re-push timers. `PORT` (default 8787), `HOST` (default all interfaces), `DB_PATH` (default `relay.db` here), `LAN_ONLY` (default on), `LINK_FAILS_PER_WINDOW` and `REGISTRATIONS_PER_WINDOW` (default 10 per 15 min per address); `PHOTON_URL`, `VALHALLA_URL`, `ROUTING_USER_AGENT`, `PLANNING_PER_WINDOW` (default 120 per 15 min per phone) for place search and walking routes; `OFFLINE_NAV_MS`, `OFFLINE_IDLE_MS`, `TICK_MS`, `ESCALATE_AFTER_MS` for testing |
 | `web/index.html` | SENTRA Care in a browser, served at `/`: map (Leaflet 1.9.4 + OpenStreetMap, loaded from unpkg), status, history, alarm. Same look as the app's SENTRA Care (lavender, pink): per child a card with status, map, Trip History (trips grouped from the events, like the app) and Alerts. Reads the stream with `fetch` because `EventSource` cannot send the bearer token |
 | `push.mjs` | FCM push: high priority for OFF_ROUTE, SLEEVE_DISCONNECTED, OFFLINE; normal for ARRIVED, NAV_START, TEST |
 | `test.mjs` | End-to-end test against a throwaway database |
@@ -82,11 +82,23 @@ its SHA-256 is stored.
 | `GET /v1/children/:id/track` | parent | Fixes oldest first; `?since=` (default last 2 h), `?limit=` up to 5000 |
 | `POST /v1/events/:id/ack` | parent | "Seen by …" |
 | `PUT /v1/push-token` | parent | `{token}`: this phone's FCM token |
+| `GET /v1/places` | either | `?q=` (2+ characters), optional `?lat=&lon=` to prefer nearby places. Forwarded to Photon; returns `{places: [{name, detail, lat, lon}]}` |
+| `POST /v1/routes/plan` | either | `{from: {lat, lon}, to: {lat, lon}}`, at most 20 km apart. Forwarded to Valhalla (`pedestrian`, type `blind`, favouring sidewalks, avoiding steps); returns `{lengthM, timeS, shape: [[lat, lon]…], maneuvers: [{at, type, instruction}]}` where `at` indexes `shape`. 422 when no walking route exists |
 | `GET /v1/stream` | parent | SSE: `hello`, `event`, `status`, `location`, `ack`, `offline`, `online`, `unlinked`. `Last-Event-ID` replays events of the last 24 h |
 
 `status` is whatever the child's phone sends; the app sends `navigating`, `navState` (IDLE,
 NAVIGATING, OFF_ROUTE, ARRIVED), `sleeveConnected`, `batteryPct`, `obstacleCm`, `simulated`, and
 during a trip `routeName`, `route` (`[[lat, lon], …]`), `nextPoint`, `totalPoints`, `distanceM`.
+
+## Place search and walking routes
+
+The phones never call map services themselves; the relay forwards to [Photon](https://github.com/komoot/photon)
+(search) and [Valhalla](https://github.com/valhalla/valhalla) (routing), both open source on
+OpenStreetMap data. The defaults are the free public servers (`photon.komoot.io`,
+`valhalla1.openstreetmap.de`), which are for testing and light use only. For real use, run your own
+and set `PHOTON_URL` / `VALHALLA_URL`: a Valhalla built from just the city's OpenStreetMap extract
+is small enough to serve, but building it needs more memory than the 512 MB VPS has, so build the
+tiles elsewhere and copy them over. `test.mjs` runs against a stand-in for both services.
 
 ## Event types
 

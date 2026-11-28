@@ -44,6 +44,18 @@ const MAX_POINTS_PER_POST = 500;
 const RATE_WINDOW_MS = 15 * 60_000;
 const LINK_FAILS_PER_WINDOW = Number(process.env.LINK_FAILS_PER_WINDOW ?? 10);
 const REGISTRATIONS_PER_WINDOW = Number(process.env.REGISTRATIONS_PER_WINDOW ?? 10);
+// Place search and walking routes are forwarded to open-source services built on OpenStreetMap
+// (Photon for search, Valhalla for routing). The defaults are the free public servers, fine for
+// testing but not meant for production traffic: point these at your own servers later. The phones
+// only talk to the relay, so the backend can change without a new APK.
+const PHOTON_URL = process.env.PHOTON_URL ?? 'https://photon.komoot.io/api';
+const VALHALLA_URL = process.env.VALHALLA_URL ?? 'https://valhalla1.openstreetmap.de/route';
+const ROUTING_USER_AGENT = process.env.ROUTING_USER_AGENT ?? 'sentra-relay/1.0';
+const ROUTING_TIMEOUT_MS = Number(process.env.ROUTING_TIMEOUT_MS ?? 12_000);
+/** Searches plus route requests per phone (or address) per window: keeps us polite to the public servers. */
+const PLANNING_PER_WINDOW = Number(process.env.PLANNING_PER_WINDOW ?? 120);
+/** Longest walking route we plan, in metres, as the crow flies between start and destination. */
+const MAX_PLAN_DISTANCE_M = 20_000;
 /** Full-screen alarms on the parents' phones, re-pushed until someone acknowledges. */
 const ALARM_TYPES = ['OFF_ROUTE', 'SLEEVE_DISCONNECTED', 'OFFLINE'];
 const isAlarm = (type) => ALARM_TYPES.includes(type);
@@ -284,12 +296,147 @@ function limiter(max) {
 }
 const linkFails = limiter(LINK_FAILS_PER_WINDOW);
 const registrations = limiter(REGISTRATIONS_PER_WINDOW);
+const planning = limiter(PLANNING_PER_WINDOW);
 
 const str = (v, max = 80) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 const int = (v) => (v != null && v !== '' && Number.isFinite(Number(v)) ? Math.trunc(Number(v)) : null);
 const num = (v) => (v != null && v !== '' && Number.isFinite(Number(v)) ? Number(v) : null);
 const coord = (v, limit) => { const n = num(v); return n != null && Math.abs(n) <= limit ? n : null; };
 const query = (req) => new URL(req.url, 'http://x').searchParams;
+
+// --- Place search and walking routes ------------------------------------------------------------
+
+/** Either kind of phone may plan; the limit is per phone, or per address for a bad token. */
+function plannerAuth(req) {
+  const h = bearer(req);
+  const who = h && (q.childByToken.get(h) ? `child:${h}` : q.parentByToken.get(h) ? `parent:${h}` : null);
+  if (!who) throw new HttpError(401, 'phone token required');
+  planning.check(who);
+  planning.hit(who);
+}
+
+async function upstream(url, init) {
+  let r;
+  try {
+    r = await fetch(url, {
+      ...init,
+      headers: { 'User-Agent': ROUTING_USER_AGENT, Accept: 'application/json', ...(init?.headers ?? {}) },
+      signal: AbortSignal.timeout(ROUTING_TIMEOUT_MS),
+    });
+  } catch (err) {
+    console.error(`routing service unreachable: ${err.message}`);
+    throw new HttpError(502, 'the map service did not answer, try again');
+  }
+  const json = await r.json().catch(() => null);
+  return { status: r.status, json };
+}
+
+/** Decodes an encoded polyline (Valhalla uses 6 decimal places) into [lat, lon] pairs. */
+function decodePolyline(text, precision = 6) {
+  const factor = 10 ** precision;
+  const out = [];
+  let i = 0, lat = 0, lon = 0;
+  const next = () => {
+    let result = 0, shift = 0, b;
+    do { b = text.charCodeAt(i++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+    return result & 1 ? ~(result >> 1) : result >> 1;
+  };
+  while (i < text.length) {
+    lat += next(); lon += next();
+    out.push([lat / factor, lon / factor]);
+  }
+  return out;
+}
+
+function metresBetween(a, b) {
+  const x = (b.lon - a.lon) * 111_320 * Math.cos(((a.lat + b.lat) / 2) * Math.PI / 180);
+  const y = (b.lat - a.lat) * 110_540;
+  return Math.hypot(x, y);
+}
+
+/** One line under a search result: street, district, city, without repeats. */
+function placeDetail(p) {
+  const parts = [[p.street, p.housenumber].filter(Boolean).join(' '), p.district, p.city ?? p.county, p.state];
+  return [...new Set(parts.filter((x) => x && x !== p.name))].join(', ');
+}
+
+const planRoutes = {
+  /** Place search: ?q=text, optional ?lat=&lon= to prefer places near the phone. */
+  'GET /v1/places': async (req) => {
+    plannerAuth(req);
+    const qs = query(req);
+    const text = str(qs.get('q'), 100);
+    if (text.length < 2) throw new HttpError(400, 'q must be at least 2 characters');
+    const url = new URL(PHOTON_URL);
+    url.searchParams.set('q', text);
+    url.searchParams.set('limit', '8');
+    url.searchParams.set('lang', 'en');
+    const lat = coord(qs.get('lat'), 90), lon = coord(qs.get('lon'), 180);
+    if (lat != null && lon != null) {
+      url.searchParams.set('lat', String(lat));
+      url.searchParams.set('lon', String(lon));
+    }
+    const { status, json } = await upstream(url);
+    if (status !== 200 || !Array.isArray(json?.features)) throw new HttpError(502, 'place search failed, try again');
+    const places = json.features.flatMap((f) => {
+      const [plon, plat] = f?.geometry?.coordinates ?? [];
+      const p = f?.properties ?? {};
+      const name = str(p.name ?? [p.street, p.housenumber].filter(Boolean).join(' '), 120);
+      if (coord(plat, 90) == null || coord(plon, 180) == null || !name) return [];
+      return [{ name, detail: str(placeDetail(p), 200), lat: plat, lon: plon }];
+    });
+    return { places };
+  },
+
+  /**
+   * A walking route: {from: {lat, lon}, to: {lat, lon}}. Answers with the whole line, oldest
+   * first, and where each maneuver (turn) starts on it, so the phone can pick its route points.
+   */
+  'POST /v1/routes/plan': async (req) => {
+    plannerAuth(req);
+    const b = await body(req);
+    const from = { lat: coord(b.from?.lat, 90), lon: coord(b.from?.lon, 180) };
+    const to = { lat: coord(b.to?.lat, 90), lon: coord(b.to?.lon, 180) };
+    if ([from.lat, from.lon, to.lat, to.lon].includes(null)) throw new HttpError(400, 'from and to need lat and lon');
+    if (metresBetween(from, to) > MAX_PLAN_DISTANCE_M) throw new HttpError(422, 'that place is too far to walk');
+    const { status, json } = await upstream(VALHALLA_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        locations: [from, to],
+        costing: 'pedestrian',
+        costing_options: {
+          pedestrian: {
+            // "blind" adds crossings, stairs and similar to the instructions. The factors below
+            // favour sidewalks and footways and steer away from steps, alleys, driveways and tracks.
+            type: 'blind',
+            walkway_factor: 0.8, sidewalk_factor: 0.8, alley_factor: 3, driveway_factor: 5,
+            step_penalty: 60, use_ferry: 0, use_tracks: 0, use_lit: 0.5, max_hiking_difficulty: 1,
+          },
+        },
+        units: 'kilometers',
+        language: 'en-US',
+      }),
+    });
+    const leg = json?.trip?.legs?.[0];
+    if (status !== 200 || !leg?.shape) {
+      // Valhalla answers 400 with an error_code when no walkable way is near a point or none links them.
+      if (status === 400 && json?.error_code) throw new HttpError(422, 'no walking route found between these places');
+      throw new HttpError(502, 'route planning failed, try again');
+    }
+    const shape = decodePolyline(leg.shape);
+    return {
+      lengthM: Math.round((json.trip.summary?.length ?? 0) * 1000),
+      timeS: Math.round(json.trip.summary?.time ?? 0),
+      shape,
+      maneuvers: (leg.maneuvers ?? []).map((m) => ({
+        at: Math.min(Math.max(int(m.begin_shape_index) ?? 0, 0), shape.length - 1),
+        type: int(m.type) ?? 0,
+        instruction: str(m.instruction, 300),
+      })),
+    };
+  },
+};
 
 function newInviteCode(childId, expiresAt) {
   // 6 digits, easy to read out loud; retried on the rare clash.
@@ -503,6 +650,7 @@ const routes = {
     });
     return undefined; // response stays open
   },
+  ...planRoutes,
 };
 
 function match(method, path) {
@@ -585,6 +733,7 @@ setInterval(() => {
     if (changes) console.log(`purged ${changes} old location fixes`);
     linkFails.purge();
     registrations.purge();
+    planning.purge();
   }
 }, TICK_MS).unref();
 

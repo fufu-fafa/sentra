@@ -12,7 +12,7 @@ UI text is English.
 | `App.kt` | `App` (first-launch `ModeScreen`, then Child mode or SENTRA Care), `ChildApp` (four tabs, a page stack of `ChildPage`s, and the navigation / arrival screens over everything during a trip) |
 | `AppViewModel.kt` | One view model for both modes: exposes `ChildManager` and `CareManager` state, route recording (§9.4), invites, linking, test log |
 | `HomeScreen.kt` | Home: logo, sleeve card, Start Navigation, Live Location and Routes tiles, Navigation Status with a speaker button; also `RelayLine`, `ObstacleReadout`, `SpeakButton` |
-| `RouteScreen.kt` | Routes: saved routes as destinations with a filter box, route detail with map and Start Trip, Route History, and Record Route |
+| `RouteScreen.kt` | Routes: saved routes as destinations with a filter box, route detail with map and Start Trip, Route History, Record Route, and Find Route (search a place, preview the planned walk, save it as a route) |
 | `NavigationScreen.kt` | Navigation (instruction, map, time and distance left) and You've Arrived; helpers `navInstruction`, `remainingM`, `distanceText`, `etaText` (`WALK_SPEED_MS` = 0.9 m/s) |
 | `LiveLocationScreen.kt` | Live Location / Map tab (this phone on the map) and Device Status (sleeve drawing, obstacle, intensity, last ACK, way into Demo Mode) |
 | `DemoScreen.kt` | Demo Mode (§9.6): every sleeve command by hand, intensity, automatic route simulation, sleeve replies |

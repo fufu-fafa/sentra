@@ -9,6 +9,7 @@ types, so it is fully unit tested. Part of [`com.sentra`](../README.md).
 | File | What it does |
 |---|---|
 | `Geo.kt` | `GeoPoint`, `Turn` (STRAIGHT, LEFT, RIGHT, U_TURN) and `Geo`: distance and bearing on a flat-earth approximation, `turnAt(from, at, to)` to classify a corner, and `offset` (used by the simulated walk) |
+| `RoutePlanner.kt` | `Place`, `PlannedRoute` (a routing service's line and its maneuver indices) and `RoutePlanner.toNavPoints`, which turns that line into start, turns and destination for `NavEngine`: every maneuver kept, bends over 8 m kept (Douglas–Peucker, so a curved street never looks like walking away), points at least 20 m apart |
 | `NavEngine.kt` | `NavState` (IDLE, NAVIGATING, OFF_ROUTE, ARRIVED), `NavAction` (`Send` a command, `Speak` a prompt, `Report` an event), `NavSnapshot` (what the UI shows) and `NavEngine` itself |
 
 ## How it works
